@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isValidNote(data, userId) {
+      return data.keys().hasAll(['id', 'title', 'content', 'school', 'color', 'pinned', 'userId', 'createdAt'])
+        && data.keys().size() == 8
+        && data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() <= 500
+        && data.content is string && data.content.size() <= 100000
+        && data.school is string && data.school.size() <= 200
+        && data.color is string && data.color.size() <= 100
+        && data.pinned is bool
+        && data.userId == userId
+        && data.createdAt is string && data.createdAt.size() <= 100;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      
+      match /notes/{noteId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(noteId) && isValidNote(incoming(), userId);
+        allow update: if isOwner(userId) && isValidNote(incoming(), userId) && incoming().id == existing().id;
+        allow delete: if isOwner(userId);
+      }
+
+      match /traditions/{traditionId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(traditionId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /chats/{chatId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(chatId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

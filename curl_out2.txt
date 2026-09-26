@@ -1,0 +1,14 @@
+Note: Unnecessary use of -X or --request, POST is already inferred.
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0*   Trying 127.0.0.1:3000...
+* Connected to localhost (127.0.0.1) port 3000 (#0)
+> POST /api/nexus/say-hello HTTP/1.1
+> Host: localhost:3000
+> User-Agent: curl/7.88.1
+> Accept: */*
+> Content-Type: application/json
+> Content-Length: 16
+> 
+} [16 bytes data]
+100    16    0     0  100    16      0     13  0:00:01  0:00:01 --:--:--    13100    16    0     0  100    16      0      7  0:00:02  0:00:02 --:--:--     7

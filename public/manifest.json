@@ -1,0 +1,31 @@
+{
+  "id": "/",
+  "name": "Remix The Great 76 Wheel of Mysteries",
+  "short_name": "Mysteries 76",
+  "description": "Esoteric cipher, ancient records search, mystic symbolism, and AI-powered knowledge discovery engine.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#050508",
+  "theme_color": "#050508",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": [
+    "education",
+    "reference",
+    "utilities"
+  ]
+}

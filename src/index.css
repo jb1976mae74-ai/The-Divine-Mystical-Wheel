@@ -1,0 +1,164 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+}
+
+/* GPU Accelerated scrolling containers */
+.smooth-scroll-gpu {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0c; 
+}
+ 
+::-webkit-scrollbar-thumb {
+  background: #334155; 
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D4AF37; 
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 0.8; }
+  100% { transform: translateY(1000%); opacity: 0; }
+}
+
+.scanline {
+  animation: scanline 4s linear infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes radarPulse {
+  0% {
+    stroke-width: 1;
+    opacity: 0.6;
+  }
+  50% {
+    stroke-width: 2;
+    opacity: 1;
+  }
+  100% {
+    stroke-width: 1;
+    opacity: 0.6;
+  }
+}
+
+.radar-trend-pulse {
+  animation: radarPulse 3s infinite ease-in-out;
+}
+
+/* Sacred Heptagram Hover Tooltips - Smooth Scale-Up CSS Animations */
+@keyframes heptagramTooltipScaleUp {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes heptagramTooltipBorderPulse {
+  0%, 100% {
+    stroke-opacity: 0.45;
+  }
+  50% {
+    stroke-opacity: 0.95;
+  }
+}
+
+#sacredHeptagramSymbol .esoteric-hover-group {
+  cursor: pointer;
+}
+
+#sacredHeptagramSymbol .esoteric-hover-target {
+  transition: filter 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#sacredHeptagramSymbol .esoteric-hover-group:hover .esoteric-hover-target,
+#sacredHeptagramSymbol .esoteric-hover-group.is-active .esoteric-hover-target {
+  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.85));
+}
+
+#sacredHeptagramSymbol .esoteric-tooltip-bubble {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  transform: scale(0.92);
+  transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform, visibility;
+}
+
+#sacredHeptagramSymbol .esoteric-hover-group:hover .esoteric-tooltip-bubble,
+#sacredHeptagramSymbol .esoteric-hover-group.is-active .esoteric-tooltip-bubble {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: scale(1);
+  animation: heptagramTooltipScaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+#sacredHeptagramSymbol .esoteric-hover-group.is-dismissed .esoteric-tooltip-bubble {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  animation: none !important;
+  transform: scale(0.92) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #sacredHeptagramSymbol .esoteric-tooltip-bubble {
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+    transform: none !important;
+    animation: none !important;
+  }
+}
+
+#sacredHeptagramSymbol .heptagram-tooltip-dismiss-btn {
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+#sacredHeptagramSymbol .heptagram-tooltip-dismiss-btn:hover circle {
+  fill: rgba(30, 41, 59, 0.98);
+  stroke: #fbbf24;
+  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.6));
+}
+
+#sacredHeptagramSymbol .heptagram-tooltip-dismiss-btn:active circle {
+  transform: scale(0.92);
+  fill: rgba(245, 158, 11, 0.4);
+}
+
+#sacredHeptagramSymbol .esoteric-tooltip-border-pulse {
+  animation: heptagramTooltipBorderPulse 3s ease-in-out infinite;
+}
+

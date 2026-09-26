@@ -1,0 +1,11 @@
+{
+  "name": "Remix The Great 76 Wheel of Mysteries ",
+  "description": "My goal when starting this, [5776 (2016)] was to build a search engine with the capabilities of ai and the speed of really any capable search engine. I set out to complete all the missing parts to the ancient records whether they be secular in spirit or inspired by the Living GOD of Creation. When Christ spoke of losing the keys of knowledge Christ was speaking to all who have destroyed any one of this worlds civilizations cipheric volumes of history or esoteric writings.\n    There is no greater crime against mankind and its future than to erase its past.",
+  "requestFramePermissions": [
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

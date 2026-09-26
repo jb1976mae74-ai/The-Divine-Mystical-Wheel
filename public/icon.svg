@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1c162e" />
+      <stop offset="70%" stop-color="#0a0812" />
+      <stop offset="100%" stop-color="#040307" />
+    </radialGradient>
+    <radialGradient id="goldGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFECA1" stop-opacity="1" />
+      <stop offset="45%" stop-color="#D4AF37" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#8c6d1f" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="goldStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFECA1" />
+      <stop offset="50%" stop-color="#D4AF37" />
+      <stop offset="100%" stop-color="#AA7C11" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="100" fill="url(#bgGrad)" />
+
+  <!-- Outer Ring -->
+  <circle cx="256" cy="256" r="220" fill="none" stroke="url(#goldStroke)" stroke-width="3" opacity="0.6" />
+  <circle cx="256" cy="256" r="208" fill="none" stroke="url(#goldStroke)" stroke-width="1.5" stroke-dasharray="4 6" opacity="0.4" />
+  <circle cx="256" cy="256" r="160" fill="none" stroke="url(#goldStroke)" stroke-width="1" opacity="0.5" />
+
+  <!-- Center Glow -->
+  <circle cx="256" cy="256" r="110" fill="url(#goldGlow)" opacity="0.35" />
+
+  <!-- 7-Pointed Star (Heptagram 7/3) -->
+  <path d="M 256,66 L 334,394 L 84,204 L 428,204 L 178,394 L 256,66 Z" 
+        fill="none" stroke="url(#goldStroke)" stroke-width="4.5" stroke-linejoin="round" />
+
+  <!-- 7-Pointed Star (Heptagram 7/2) -->
+  <path d="M 256,66 L 396,312 L 142,168 L 418,242 L 94,242 L 370,168 L 116,312 Z" 
+        fill="none" stroke="#FFECA1" stroke-width="2" stroke-linejoin="round" opacity="0.65" />
+
+  <!-- Central Emblem Eye / Star -->
+  <circle cx="256" cy="256" r="18" fill="#FFECA1" />
+  <circle cx="256" cy="256" r="28" fill="none" stroke="url(#goldStroke)" stroke-width="2" />
+
+  <!-- Outer Vertices Nodes -->
+  <circle cx="256" cy="66" r="6" fill="#FFECA1" />
+  <circle cx="410" cy="140" r="6" fill="#FFECA1" />
+  <circle cx="450" cy="295" r="6" fill="#FFECA1" />
+  <circle cx="342" cy="425" r="6" fill="#FFECA1" />
+  <circle cx="170" cy="425" r="6" fill="#FFECA1" />
+  <circle cx="62" cy="295" r="6" fill="#FFECA1" />
+  <circle cx="102" cy="140" r="6" fill="#FFECA1" />
+</svg>

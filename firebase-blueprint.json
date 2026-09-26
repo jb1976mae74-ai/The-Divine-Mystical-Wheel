@@ -1,0 +1,96 @@
+{
+  "entities": {
+    "GrimoireNote": {
+      "title": "GrimoireNote",
+      "description": "An esoteric journal entry or note synced to the cloud.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique UUID of the note" },
+        "title": { "type": "string", "description": "Title or subject of the note" },
+        "content": { "type": "string", "description": "Markdown content of the note" },
+        "school": { "type": "string", "description": "Esoteric mystery school tag" },
+        "color": { "type": "string", "description": "Background color style theme" },
+        "pinned": { "type": "boolean", "description": "Whether the note is pinned" },
+        "userId": { "type": "string", "description": "Firebase UID of the owner" },
+        "createdAt": { "type": "string", "description": "Timestamp when the note was created" }
+      },
+      "required": ["id", "title", "content", "school", "color", "pinned", "userId", "createdAt"]
+    },
+    "Tradition": {
+      "title": "Tradition",
+      "description": "A proprietary esoteric tradition created by the user.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "principles": { "type": "array", "items": { "type": "string" } },
+        "badge": { 
+          "type": "object",
+          "properties": {
+            "icon": { "type": "string" },
+            "primaryColor": { "type": "string" },
+            "secondaryColor": { "type": "string" },
+            "pattern": { "type": "string" }
+          }
+        },
+        "createdAt": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["name", "description", "principles", "badge", "createdAt", "userId"]
+    },
+    "AncientRecord": {
+      "title": "Ancient Record",
+      "description": "An ancient record entry in the knowledge base.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "slug": { "type": "string", "description": "URL-friendly identifier" },
+        "title": { "type": "string", "description": "Title of the record" },
+        "description": { "type": "string", "description": "Content of the record" }
+      },
+      "required": ["id", "slug", "title", "description"]
+    },
+    "ChatSession": {
+      "title": "Chat Session",
+      "description": "A conversation session with the Mystic Guide chatbot.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": { "type": "string", "enum": ["user", "model"] },
+              "content": { "type": "string" },
+              "timestamp": { "type": "string" }
+            },
+            "required": ["role", "content", "timestamp"]
+          }
+        },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "messages", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}/notes/{noteId}": {
+      "schema": "GrimoireNote",
+      "description": "A subcollection containing a user's mystical journal notes."
+    },
+    "users/{userId}/traditions/{traditionId}": {
+      "schema": "Tradition",
+      "description": "A subcollection containing a user's custom esoteric traditions."
+    },
+    "users/{userId}/chats/{chatId}": {
+      "schema": "ChatSession",
+      "description": "A subcollection containing a user's chat history with the Mystic Guide."
+    },
+    "ancient-records/{recordId}": {
+      "schema": "AncientRecord",
+      "description": "Collection of ancient records accessible to the mystery schools."
+    }
+  }
+}

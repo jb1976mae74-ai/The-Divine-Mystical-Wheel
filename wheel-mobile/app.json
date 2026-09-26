@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "The Great Wheel of Mysteries",
+    "slug": "wheel-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#08090e"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.greatwheel.app"
+    },
+    "android": {
+      "package": "com.greatwheel.app",
+      "permissions": [
+        "INTERNET"
+      ]
+    }
+  }
+}
