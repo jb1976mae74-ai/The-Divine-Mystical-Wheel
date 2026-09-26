@@ -139,6 +139,9 @@ export default function ConsultationChroniclesDrawer({
   const [showBatchTagPanel, setShowBatchTagPanel] = useState(true);
   const [activeAddTagInquiryId, setActiveAddTagInquiryId] = useState<string | null>(null);
   const [singleTagInput, setSingleTagInput] = useState("");
+  // Quick Notes editing state
+  const [activeNoteInquiryId, setActiveNoteInquiryId] = useState<string | null>(null);
+  const [noteInput, setNoteInput] = useState<string>("");
 
   const activeFiltersCount = (selectedSchoolFilter !== 'all' ? 1 : 0) + 
     (selectedZodiacFilter !== 'all' ? 1 : 0) + 
@@ -659,6 +662,32 @@ export default function ConsultationChroniclesDrawer({
     }
     setActiveAddTagInquiryId(null);
     setSingleTagInput("");
+  };
+
+  // Save Quick Note for Single Record
+  const handleSaveQuickNote = (id: string, newNotes: string) => {
+    const trimmed = newNotes.trim();
+    const updated = pastInquiries.map(iq => {
+      if (iq.id === id) {
+        const next = { ...iq, notes: trimmed };
+        if (readingModalInquiry && readingModalInquiry.id === id) {
+          setReadingModalInquiry(next);
+        }
+        return next;
+      }
+      return iq;
+    });
+    setPastInquiries(updated);
+    try {
+      localStorage.setItem("oracle-past-inquiries", JSON.stringify(updated));
+    } catch (e) {}
+    setActiveNoteInquiryId(null);
+    setNoteInput("");
+    setDbToast({
+      message: trimmed ? "Quick insight note saved." : "Quick note removed.",
+      type: "success",
+      id: Date.now()
+    });
   };
 
   // Remove Tag from Single Record
@@ -2636,6 +2665,78 @@ export default function ConsultationChroniclesDrawer({
                             >
                               <Plus className="w-2.5 h-2.5 text-amber-400" />
                               <span>Tag</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Quick Notes Section */}
+                        <div className="mb-3 pt-2 border-t border-white/5">
+                          {activeNoteInquiryId === iq.id ? (
+                            <div className="p-3 bg-black/60 border border-amber-500/40 rounded-lg space-y-2" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-mono text-amber-400 flex items-center gap-1">
+                                  <FileText className="w-3 h-3" /> Quick Insight Note
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-mono">Press Save or Escape</span>
+                              </div>
+                              <textarea
+                                value={noteInput}
+                                onChange={(e) => setNoteInput(e.target.value)}
+                                placeholder="Type brief insight or notes about this generated answer..."
+                                rows={2}
+                                autoFocus
+                                className="w-full bg-neutral-900 border border-neutral-700 rounded p-2 text-xs font-serif text-slate-200 focus:outline-none focus:border-amber-500 resize-none"
+                              />
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveNoteInquiryId(null);
+                                    setNoteInput("");
+                                  }}
+                                  className="px-2.5 py-1 text-[11px] font-mono text-slate-400 hover:text-slate-200 bg-white/5 rounded cursor-pointer"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveQuickNote(iq.id, noteInput)}
+                                  className="px-3 py-1 text-[11px] font-mono font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 rounded cursor-pointer flex items-center gap-1 shadow-sm"
+                                >
+                                  <Check className="w-3 h-3" /> Save Note
+                                </button>
+                              </div>
+                            </div>
+                          ) : iq.notes && iq.notes.trim().length > 0 ? (
+                            <div 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveNoteInquiryId(iq.id);
+                                setNoteInput(iq.notes || "");
+                              }}
+                              className="p-2.5 bg-amber-950/20 border border-amber-500/30 rounded-lg text-xs font-serif text-amber-200/90 group relative cursor-pointer hover:border-amber-500/60 transition-all"
+                              title="Click to edit quick note"
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-mono text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                                  <FileText className="w-3 h-3" /> Quick Insight Note:
+                                </span>
+                                <span className="text-[10px] font-mono text-amber-400/70 group-hover:underline">Edit</span>
+                              </div>
+                              <p className="italic text-slate-300 whitespace-pre-wrap">{iq.notes}</p>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveNoteInquiryId(iq.id);
+                                setNoteInput("");
+                              }}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono text-slate-400 hover:text-amber-300 bg-white/5 hover:bg-white/10 border border-dashed border-white/15 hover:border-amber-500/40 transition-colors cursor-pointer"
+                            >
+                              <FileText className="w-3 h-3 text-amber-400" />
+                              <span>Add Quick Note</span>
                             </button>
                           )}
                         </div>
