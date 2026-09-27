@@ -267,14 +267,16 @@ export const ConsultationRadarChart: React.FC<ConsultationRadarChartProps> = ({
 
         {/* Standard Mode Radar Layer */}
         <Radar
-          key="radar-standard"
+          key={`radar-standard-${unifiedRadarData.map(d => `${d.subject}-${d.value}`).join('-')}`}
           name="Alignment Magnitude"
           dataKey="value"
           stroke={effectiveStroke}
           strokeWidth={showTrendAnalysis ? 0 : 2.5}
           fill={effectiveFill}
           fillOpacity={showTrendAnalysis ? 0 : (elementalView === 'standard' ? activeTheme.radarFillOpacity : 0.8)}
-          isAnimationActive={false} // Smoothly updated via frame-by-frame cubic ease interpolation
+          isAnimationActive={true}
+          animationDuration={800}
+          animationEasing="ease-out"
           dot={
             showTrendAnalysis
               ? false
@@ -282,14 +284,16 @@ export const ConsultationRadarChart: React.FC<ConsultationRadarChartProps> = ({
                   const isFocused = currentViewTheme.focusedElements.includes(props.payload.subject);
                   return (
                     <circle
-                      key={`radar-dot-${props.payload.subject}`}
+                      key={`radar-dot-${props.payload.subject}-${props.value}`}
                       cx={props.cx}
                       cy={props.cy}
-                      r={isFocused && elementalView !== 'standard' ? 4 : 2.5}
+                      r={isFocused && elementalView !== 'standard' ? 4.5 : 3}
                       fill={isFocused ? effectiveStroke : '#64748b'}
                       stroke="#0f172a"
                       strokeWidth={1.5}
+                      className="radar-point-entrance"
                       style={{
+                        transformOrigin: `${props.cx}px ${props.cy}px`,
                         transition: 'r 0.3s ease, fill 0.4s ease',
                       }}
                     />
