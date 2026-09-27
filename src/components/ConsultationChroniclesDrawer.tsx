@@ -156,6 +156,7 @@ export default function ConsultationChroniclesDrawer({
   const [includeTitlePage, setIncludeTitlePage] = useState<boolean>(true);
   const [includeSummary, setIncludeSummary] = useState<boolean>(true);
   const [customSubtitle, setCustomSubtitle] = useState<string>("");
+  const [pdfDateRange, setPdfDateRange] = useState<string>("");
   const [showPdfSettingsModal, setShowPdfSettingsModal] = useState<boolean>(false);
   
   // Expanded Card details state
@@ -1091,6 +1092,7 @@ export default function ConsultationChroniclesDrawer({
       includeTitlePage: overrideOptions?.includeTitlePage !== undefined ? overrideOptions.includeTitlePage : includeTitlePage,
       includeSummary: overrideOptions?.includeSummary !== undefined ? overrideOptions.includeSummary : includeSummary,
       customSubtitle: overrideOptions?.customSubtitle !== undefined ? overrideOptions.customSubtitle : (customSubtitle || undefined),
+      dateRange: overrideOptions?.dateRange !== undefined ? overrideOptions.dateRange : (pdfDateRange || undefined),
       ...overrideOptions
     };
 
@@ -1143,6 +1145,7 @@ export default function ConsultationChroniclesDrawer({
       includeTitlePage,
       includeSummary,
       customSubtitle: customSubtitle || `Complete Archival Consultation Chronicles (${pastInquiries.length} Sacred Records)`,
+      dateRange: pdfDateRange || undefined,
       filename: `sacred_chronicles_complete_${pastInquiries.length}_records_${currentSeekerName.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.pdf`
     };
 
@@ -3289,13 +3292,27 @@ export default function ConsultationChroniclesDrawer({
               {/* Custom Subtitle (Optional) */}
               <div className="space-y-1.5">
                 <label className="text-slate-200 font-bold block">
-                  Custom Treatise Subtitle (Optional):
+                  Report Title / Custom Subtitle (Optional):
                 </label>
                 <input
                   type="text"
                   value={customSubtitle}
                   onChange={(e) => setCustomSubtitle(e.target.value)}
                   placeholder="e.g. Celestial Inscriptions of Light & Hermetic Mysteries"
+                  className="w-full px-3.5 py-2 bg-black/60 border border-white/10 rounded-xl text-slate-200 text-xs focus:outline-none focus:border-amber-400/60"
+                />
+              </div>
+
+              {/* Date Range (Optional) */}
+              <div className="space-y-1.5">
+                <label className="text-slate-200 font-bold block">
+                  Date Range (Optional Metadata):
+                </label>
+                <input
+                  type="text"
+                  value={pdfDateRange}
+                  onChange={(e) => setPdfDateRange(e.target.value)}
+                  placeholder="e.g. Sept 2026 – Oct 2026"
                   className="w-full px-3.5 py-2 bg-black/60 border border-white/10 rounded-xl text-slate-200 text-xs focus:outline-none focus:border-amber-400/60"
                 />
               </div>

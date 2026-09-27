@@ -1677,9 +1677,26 @@ export default function App() {
     }
   }, [mysticalMetrics, elementalView, activeTheme]);
 
+  const triggerHaptic = (type: 'light' | 'impact' | 'heavy' = 'light') => {
+    if (typeof window !== 'undefined' && 'navigator' in window && 'vibrate' in navigator) {
+      try {
+        if (type === 'light') {
+          navigator.vibrate(25);
+        } else if (type === 'impact') {
+          navigator.vibrate([60, 40, 100]);
+        } else if (type === 'heavy') {
+          navigator.vibrate([120, 50, 150]);
+        }
+      } catch (e) {
+        // Ignore vibration errors
+      }
+    }
+  };
+
   const selectTheme = (id: string) => {
     setActiveThemeId(id);
     localStorage.setItem("oracle-theme-id", id);
+    triggerHaptic('light');
   };
 
   const downloadJSON = () => {
@@ -2097,6 +2114,7 @@ export default function App() {
 
         // Trigger asynchronous qualitative analysis
         fetchBalanceInterpretation(inquiryId, q, s, computedMetrics);
+        triggerHaptic('impact');
       }
     } catch (err: any) {
       if (err.name === 'AbortError') {

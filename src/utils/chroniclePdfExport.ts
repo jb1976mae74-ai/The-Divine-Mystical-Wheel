@@ -8,6 +8,7 @@ export interface PdfExportOptions {
   customSubtitle?: string;
   customDedication?: string;
   filename?: string;
+  dateRange?: string;
 }
 
 export interface ChronicleCollectionAnalysis {
@@ -402,7 +403,8 @@ export function generateChroniclePdf(
     doc.setFont("times", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(140, 140, 140);
-    doc.text(`Compiled on ${new Date().toLocaleDateString()}  ✦  Coordinates: Sanctuary of Gnosis  ✦  Epoch: 76 • ע"ו`, cx, boxCenterY + 16.5, { align: "center" });
+    const dateText = options.dateRange ? `Date Range: ${options.dateRange}  ✦  ` : "";
+    doc.text(`${dateText}Compiled on ${new Date().toLocaleDateString()}  ✦  Epoch: 76 • ע"ו`, cx, boxCenterY + 16.5, { align: "center" });
 
     y += 34;
 
