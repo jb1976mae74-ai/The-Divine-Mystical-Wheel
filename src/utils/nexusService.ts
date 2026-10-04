@@ -128,7 +128,7 @@ export interface WorkflowSimulationStep {
 
 export interface WorkflowSimulation {
   id: string;
-  status: 'IDLE' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  status: 'IDLE' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELED';
   operationName?: 'SayHello' | 'ResonantVesselRefining';
   pattern?: 'polling' | 'callback';
   callbackUrl?: string;
@@ -136,6 +136,8 @@ export interface WorkflowSimulation {
   steps: WorkflowSimulationStep[];
   currentAttempt: number;
   maxAttempts: number;
+  activeOperationId?: string;
+  isCancellationRequested?: boolean;
 }
 
 export interface OperationStartOptions {
@@ -2200,6 +2202,16 @@ export class TemporalNexusService implements ISayHelloNexusService, IAethericNex
     this.activeSimulations.clear();
   }
 
+  public cancelWorkflowSimulation(simId: string) {
+    const sim = this.activeSimulations.get(simId);
+    if (sim) {
+      sim.isCancellationRequested = true;
+      if (sim.activeOperationId) {
+        this.cancelOperation(sim.activeOperationId, "Cancelled by caller workflow CancellationToken.");
+      }
+    }
+  }
+
   /**
    * Helper factory to create an IOperationHandle for client/workflow polling and control.
    */
@@ -2377,6 +2389,12 @@ export class TemporalNexusService implements ISayHelloNexusService, IAethericNex
     const isCallback = sim.pattern === 'callback';
 
     while (keepRunning) {
+      if (sim.isCancellationRequested) {
+        addStep(`⏹️ [Caller Workflow] Caller cancellation token triggered prior to attempt! Halted caller workflow execution.`, 'warn');
+        sim.status = 'CANCELED';
+        break;
+      }
+
       addStep(`🚀 [Caller Workflow Thread] [Attempt #${sim.currentAttempt}/${sim.maxAttempts}] Scheduling durable Nexus Operation '${opName}' via ${sim.pattern} pattern...`, 'info');
       
       try {
@@ -2410,6 +2428,9 @@ export class TemporalNexusService implements ISayHelloNexusService, IAethericNex
           isCallback ? handleSimCallback : undefined
         );
 
+        sim.activeOperationId = result.id;
+        onStepUpdate({ ...sim });
+
         if (isCallback) {
           addStep(`🔗 [Caller Workflow Thread] Nexus operation registered with callback hook '${options.callbackUrl}'. Issued token: ${result.id}. Awaiting webhook completion payload...`, 'info');
         } else {
@@ -2420,9 +2441,21 @@ export class TemporalNexusService implements ISayHelloNexusService, IAethericNex
         let info: OperationInfo | null = null;
 
         while (!operationTerminated) {
+          // Check for workflow cancellation
+          if (sim.isCancellationRequested) {
+            addStep(`⏹️ [Caller Workflow] Caller cancellation token triggered! Sending cancellation signal to Nexus Operation via handle.CancelAsync() for token ${result.id}...`, 'warn');
+            await this.cancelOperation(result.id, "Caller workflow CancellationToken requested cancellation.");
+            operationTerminated = true;
+            keepRunning = false;
+            sim.status = 'CANCELED';
+            break;
+          }
+
           // Poll/Await step every 1.5s inside simulation
           await new Promise(resolve => setTimeout(resolve, 1500));
           
+          if (sim.isCancellationRequested) continue; // Skip to cancellation logic on next tick
+
           info = this.getOperationInfo(result.id);
           if (!info) {
             addStep(`⚠️ [Caller Workflow Thread] Could not retrieve operation metadata for token ${result.id}. Retrying check...`, 'warn');
@@ -2451,7 +2484,7 @@ export class TemporalNexusService implements ISayHelloNexusService, IAethericNex
             keepRunning = false;
           } else if (info.state === 'FAILED') {
             operationTerminated = true;
-            addStep(`❌ [Caller Workflow Thread] Nexus Operation '${opName}' failed in execution engine. Initiating failure recovery handling...`, 'error');
+            addStep(`❌ [Caller Workflow Thread] Nexus Operation '${opName}' failed in target namespace 'celestial-sanctum'. Propagating error across namespace boundary...`, 'error');
             
             const isRetryable = info.errorType === 'retryable';
             const errorMsg = info.errorMessage || "Unknown operation failure.";
@@ -2468,25 +2501,37 @@ export class TemporalNexusService implements ISayHelloNexusService, IAethericNex
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 addStep(`🔄 [Caller Exception Handler] Backoff finished. Re-executing Nexus Operation '${opName}' handler...`, 'info');
               } else {
-                addStep(`🚨 [Caller Exception Handler] REACTION: Maximum retry threshold (${sim.maxAttempts}) reached for '${opName}'. Escalating error to caller workflow failure.`, 'error');
-                sim.status = 'FAILED';
+                addStep(`🚨 [Caller Exception Handler] REACTION: Maximum retry threshold (${sim.maxAttempts}) reached for '${opName}'. Escalating to Gnostic Fallback Protocol...`, 'error');
+                addStep(`🛡️ [Fallback Protocol] Redirecting refining process to backup alchemical sanctuary locally...`, 'info');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                addStep(`✅ [Fallback Protocol] Fallback completed. Refining finalized in backup sanctuary with purity 88.0%.`, 'success');
+                sim.status = 'COMPLETED';
                 keepRunning = false;
               }
             } else {
               addStep(`🚨 [Caller Exception Handler] CAUGHT FATAL NON-RETRYABLE EXCEPTION: "${errorMsg}"`, 'error');
-              addStep(`🛑 [Caller Exception Handler] REACTION: Operation is flagged as NON-RETRYABLE (Fatal). Aborting Caller Workflow immediately to avoid wasteful retry loops.`, 'error');
-              sim.status = 'FAILED';
+              addStep(`🛑 [Caller Exception Handler] REACTION: Operation is flagged as NON-RETRYABLE (Fatal). Initiating Gnostic Fallback Protocol...`, 'warn');
+              addStep(`🛡️ [Fallback Protocol] Executing backup Gnostic ritual locally. Transmuting lead ingot using secondary Gnostic frequency matcher...`, 'info');
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              addStep(`✅ [Fallback Protocol] Gnostic Fallback completed successfully with purity 74.2% (reduced target resonance).`, 'success');
+              sim.status = 'COMPLETED';
               keepRunning = false;
             }
           } else if (info.state === 'CANCELED') {
             operationTerminated = true;
-            addStep(`⏹️ [Caller Workflow Thread] Operation '${opName}' canceled externally. Stopping caller workflow execution.`, 'warn');
-            sim.status = 'FAILED';
+            addStep(`⏹️ [Caller Workflow Thread] Operation '${opName}' was canceled. Caught OperationCanceledException. Halting caller workflow execution cleanly.`, 'warn');
+            sim.status = 'CANCELED';
             keepRunning = false;
           }
         }
 
       } catch (err: any) {
+        if (sim.isCancellationRequested) {
+          addStep(`⏹️ [Caller Workflow] Caller cancellation token triggered during invocation! Halted.`, 'warn');
+          sim.status = 'CANCELED';
+          break;
+        }
+
         const isRetryable = err instanceof NexusRetryableException || err?.isRetryable === true;
         if (isRetryable) {
           addStep(`⚠️ [Caller Exception Handler] CAUGHT RETRYABLE EXCEPTION ON START: "${err.message}"`, 'warn');
@@ -2496,14 +2541,20 @@ export class TemporalNexusService implements ISayHelloNexusService, IAethericNex
             currentMode = 'none';
             await new Promise(resolve => setTimeout(resolve, 2000));
           } else {
-            addStep(`🚨 [Caller Exception Handler] REACTION: Maximum retries reached on operation start. Aborting Caller Workflow.`, 'error');
-            sim.status = 'FAILED';
+            addStep(`🚨 [Caller Exception Handler] REACTION: Maximum retries reached on operation start. Initiating Gnostic Fallback Protocol...`, 'error');
+            addStep(`🛡️ [Fallback Protocol] Activating local alchemical battery fallback...`, 'info');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            addStep(`✅ [Fallback Protocol] Fallback completed with safe local yield.`, 'success');
+            sim.status = 'COMPLETED';
             keepRunning = false;
           }
         } else {
-          addStep(`❌ [Caller Workflow Thread] Nexus scheduling exception (Fatal Non-Retryable): ${err.message}`, 'error');
-          addStep(`🛑 [Caller Exception Handler] Non-retryable error on start. Aborting Caller Workflow immediately.`, 'error');
-          sim.status = 'FAILED';
+          addStep(`❌ [Caller Workflow Thread] Nexus scheduling exception (Fatal Non-Retryable) in target namespace: ${err.message}`, 'error');
+          addStep(`🛑 [Caller Exception Handler] REACTION: Non-retryable error on start. Initiating Gnostic Fallback Protocol...`, 'warn');
+          addStep(`🛡️ [Fallback Protocol] Invoking emergency local containment and local transmutation...`, 'info');
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          addStep(`✅ [Fallback Protocol] Fallback completed. Refined material contained locally with reduced density.`, 'success');
+          sim.status = 'COMPLETED';
           keepRunning = false;
         }
       }

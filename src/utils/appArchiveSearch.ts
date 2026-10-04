@@ -238,6 +238,15 @@ const STATIC_ARCHIVE_DOCUMENTS: ArchiveSearchResult[] = [
     excerpt: '"Wisdom hath builded her house, she hath hewn out her seven pillars." The architectural framework of cosmic governance: 1. Incorruptible Foundation, 2. Intuitive Discernment, 3. Harmonic Resonance, 4. Sovereign Decree, 5. Solar Radiance, 6. Sacred Dominion, 7. Perpetual Splendor.',
     tags: ['Seven Pillars', 'Wisdom', 'Proverbs 9:1', 'Sophia', 'Divine Order', 'Decree'],
     relevanceScore: 1
+  },
+  {
+    id: 'termux-arch-setup-script',
+    archiveCollection: 'Grimoire of Ciphers & Cryptography',
+    title: 'TermuxArch (setupTermuxArch v2.0.548 by SDRausty)',
+    reference: 'Termux PRoot QEMU Arch Linux Installer & System Tool',
+    excerpt: 'Comprehensive automated bash bootstrap script for installing Arch Linux in Termux via PRoot and QEMU emulation. Developed by SDRausty (termuxarch.github.io). Features multi-architecture support (i386, x86_64, armv7, arm64-v8a), multiple download managers (aria2, axel, curl, lftp, wget), system information generation, and maintenance routines.',
+    tags: ['TermuxArch', 'PRoot', 'Arch Linux', 'SDRausty', 'QEMU', 'Bash', 'Termux', 'Android'],
+    relevanceScore: 1
   }
 ];
 

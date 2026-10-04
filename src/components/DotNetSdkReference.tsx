@@ -1743,10 +1743,22 @@ import org.slf4j.LoggerFactory;
 
 /**
  * This sample demonstrates loading the default environment configuration profile from a TOML file.
+ * Includes Maven GitHub Packages distributionManagement configuration for publishing packages.
  */
 public class LoadFromFile {
 
   private static final Logger logger = LoggerFactory.getLogger(LoadFromFile.class);
+
+  // Maven GitHub Packages Distribution Management Configuration (pom.xml)
+  /*
+  <distributionManagement>
+     <repository>
+       <id>github</id>
+       <name>GitHub OWNER Apache Maven Packages</name>
+       <url>https://maven.pkg.github.com/OWNER/REPOSITORY</url>
+     </repository>
+  </distributionManagement>
+  */
 
   public static void main(String[] args) {
     try {

@@ -3,7 +3,7 @@ import {
   Pin, Trash, Search, Grid, List, Plus, LogIn, LogOut, Check, 
   CloudLightning, AlertTriangle, FileText, Calendar, Cloud, RefreshCw,
   Copy, ExternalLink, TrendingUp, Activity, Milestone, Compass, 
-  Layers, Sun, Droplet, Wind, CircleDot
+  Layers, Sun, Droplet, Wind, CircleDot, FolderSearch
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { initAuth, googleSignIn, logout, getAccessToken, db, auth } from '../firebase';
@@ -12,6 +12,8 @@ import {
   collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot
 } from 'firebase/firestore';
 import MiniWYSIWYG, { parseMarkdownToHtml } from './MiniWYSIWYG';
+import GoogleKeepAndPickerHub from './GoogleKeepAndPickerHub';
+import { openGooglePicker, PickedGoogleDriveFile } from '../utils/googlePicker';
 import {
   LineChart,
   Line,
@@ -434,6 +436,75 @@ export default function GrimoireNotes({ lastInquiry, activeTheme, triggerSaveNot
     }
   };
 
+  // Custom note creation (used by Google Keep import & Google Picker)
+  const handleCreateCustomNote = async (noteData: { title: string; content: string; school: string; color: string; pinned: boolean }) => {
+    const newNote: GrimoireNote = {
+      id: crypto.randomUUID(),
+      title: noteData.title,
+      content: noteData.content,
+      school: noteData.school,
+      color: noteData.color,
+      pinned: noteData.pinned,
+      createdAt: new Date().toLocaleString(),
+    };
+
+    if (user) {
+      const notePath = `users/${user.uid}/notes/${newNote.id}`;
+      try {
+        await setDoc(doc(db, 'users', user.uid, 'notes', newNote.id), {
+          ...newNote,
+          userId: user.uid
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.CREATE, notePath);
+      }
+    } else {
+      saveNotesToLocal([newNote, ...notes]);
+    }
+  };
+
+  // Google Picker Launcher for Grimoire Notes
+  const handlePickDriveFile = async () => {
+    try {
+      let token = await getAccessToken();
+      if (!token && needsAuth) {
+        const signResult = await googleSignIn();
+        if (signResult) {
+          token = signResult.accessToken;
+          setUser(signResult.user);
+          setNeedsAuth(false);
+        }
+      }
+
+      if (!token) {
+        alert('Please sign in with Google to use Google Picker.');
+        return;
+      }
+
+      await openGooglePicker({
+        accessToken: token,
+        title: 'Select Document or Scroll from Google Drive',
+        onPicked: async (file: PickedGoogleDriveFile) => {
+          const cleanTitle = file.name.replace(/\.[^/.]+$/, "");
+          const noteContent = file.content
+            ? file.content
+            : `📄 **Google Drive Inscription**: [${file.name}](${file.url || `https://drive.google.com/file/d/${file.id}/view`})\n\n**MIME**: \`${file.mimeType}\`\n**Drive ID**: \`${file.id}\`${file.sizeBytes ? `\n**Size**: ${(file.sizeBytes / 1024).toFixed(1)} KB` : ''}\n\n*Selected via Google Picker API.*`;
+
+          await handleCreateCustomNote({
+            title: `Drive: ${cleanTitle}`,
+            content: noteContent,
+            school: 'Cosmic Revelations',
+            color: 'bg-gradient-to-br from-cyan-950/40 via-blue-950/20 to-black',
+            pinned: true
+          });
+        }
+      });
+    } catch (e: any) {
+      console.warn('Google Picker error in GrimoireNotes:', e);
+      alert(`Google Picker Notice: ${e.message || 'Could not display Picker.'}`);
+    }
+  };
+
   // Firebase auth sign in
   const handleGoogleLogin = async () => {
     setIsLoggingIn(true);
@@ -818,35 +889,14 @@ export default function GrimoireNotes({ lastInquiry, activeTheme, triggerSaveNot
         </div>
       </div>
 
-      {/* Google Keep Workspace alignment banner */}
-      <div className={`rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-serif ${dTheme.id === 'deep-void' ? 'bg-violet-950/10 border border-violet-500/10 text-violet-200/95' : dTheme.id === 'ethereal-silver' ? 'bg-slate-900/10 border border-slate-400/10 text-slate-200/95' : 'bg-amber-950/10 border border-amber-500/10 text-amber-200/95'}`}>
-        <div className="flex items-start gap-3 flex-1">
-          <div className={`p-1.5 rounded shrink-0 mt-0.5 ${dTheme.id === 'deep-void' ? 'bg-violet-500/15 text-violet-400' : dTheme.id === 'ethereal-silver' ? 'bg-slate-500/15 text-slate-300' : 'bg-amber-500/15 text-amber-500'}`}>
-            <Copy className="w-4 h-4" />
-          </div>
-          <div className="leading-relaxed">
-            <p className={`font-semibold font-serif mb-0.5 text-sm ${dTheme.id === 'deep-void' ? 'text-violet-300' : dTheme.id === 'ethereal-silver' ? 'text-slate-200' : 'text-amber-300'}`}>Google Keep Integration & Notes Hub</p>
-            <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
-              Use the <strong className={`${dTheme.id === 'deep-void' ? 'text-violet-300' : dTheme.id === 'ethereal-silver' ? 'text-slate-200' : 'text-amber-300'}`}>Keep</strong> button on any note card to automatically copy its title and formatted content and open <strong className="text-slate-200">Google Keep</strong> ready for instant pasting. You can also sync notes as markdown documents directly to <strong>Google Drive</strong>, export to <strong>Google Docs</strong>, and set reminders in <strong>Google Tasks</strong>.
-            </p>
-          </div>
-        </div>
-        <a
-          href="https://keep.google.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`shrink-0 px-3 py-1.5 rounded-lg border text-xs font-serif flex items-center gap-1.5 transition-all shadow-sm ${
-            dTheme.id === 'deep-void' 
-              ? 'bg-violet-500/15 border-violet-500/30 text-violet-300 hover:bg-violet-500/25' 
-              : dTheme.id === 'ethereal-silver' 
-              ? 'bg-slate-800/40 border-slate-500/30 text-slate-200 hover:bg-slate-800/60' 
-              : 'bg-amber-500/15 border-amber-500/30 text-amber-300 hover:bg-amber-500/25'
-          }`}
-        >
-          <span>Open Google Keep</span>
-          <ExternalLink className="w-3 h-3" />
-        </a>
-      </div>
+      {/* Google Keep & Google Picker Workspace Alignment Hub */}
+      <GoogleKeepAndPickerHub
+        currentUser={user}
+        needsAuth={needsAuth}
+        onAuthSuccess={() => setNeedsAuth(false)}
+        onImportNote={handleCreateCustomNote}
+        activeTheme={dTheme}
+      />
 
       {/* Save last Oracle response directly */}
       {lastInquiry && lastInquiry.answer && (
@@ -915,8 +965,25 @@ export default function GrimoireNotes({ lastInquiry, activeTheme, triggerSaveNot
             </select>
           </div>
 
-          {/* Color palette selector */}
+          {/* Color palette selector & Drive Picker button */}
           <div className="flex items-center gap-2">
+            {/* Google Drive Picker Quick Select */}
+            <button
+              type="button"
+              onClick={handlePickDriveFile}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-serif border transition-all ${
+                dTheme.id === 'deep-void'
+                  ? 'bg-violet-950/40 border-violet-500/30 text-violet-300 hover:bg-violet-900/40'
+                  : dTheme.id === 'ethereal-silver'
+                  ? 'bg-slate-900/40 border-slate-500/30 text-slate-300 hover:bg-slate-800/40'
+                  : 'bg-amber-950/40 border-amber-500/30 text-amber-300 hover:bg-amber-900/40'
+              }`}
+              title="Pick file from Google Drive via Google Picker"
+            >
+              <FolderSearch className="w-3.5 h-3.5 text-sky-400" />
+              <span>Pick Drive</span>
+            </button>
+
             <div className="flex gap-1.5">
               {PALETTE.map((color) => (
                 <button
@@ -955,6 +1022,16 @@ export default function GrimoireNotes({ lastInquiry, activeTheme, triggerSaveNot
         </div>
 
         <div className="flex items-center gap-1.5 bg-black/40 p-1 border border-white/5 rounded-lg self-end md:self-auto">
+          <button
+            type="button"
+            onClick={handlePickDriveFile}
+            className="px-2.5 py-1 rounded text-xs font-serif flex items-center gap-1.5 bg-sky-950/40 hover:bg-sky-900/50 border border-sky-500/30 text-sky-300 transition-all"
+            title="Open Google Picker to select and import files from Google Drive"
+          >
+            <FolderSearch className="w-3.5 h-3.5 text-sky-400" />
+            <span className="hidden sm:inline">Google Picker</span>
+          </button>
+
           <button 
             type="button"
             onClick={() => setViewMode('grid')}

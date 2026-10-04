@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { AethericConnectivityMonitor } from './AethericConnectivityMonitor';
 import { 
   ShieldCheck, ShieldAlert, Key, Users, Activity, Database, Lock, Unlock, 
   RefreshCw, Search, Filter, Download, Trash2, UserPlus, CheckCircle2, 
@@ -1657,8 +1658,8 @@ export default function AdminDashboard({ activeTheme, currentUserEmail = 'jb1976
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {(dbHealth?.tables || []).map((t) => (
-                    <tr key={t.name} className="hover:bg-white/[0.02]">
+                  {(dbHealth?.tables || []).map((t, index) => (
+                    <tr key={`${t.name}-${index}`} className="hover:bg-white/[0.02]">
                       <td className="py-3 px-6 font-semibold text-slate-200">{t.name}</td>
                       <td className="py-3 px-6 text-slate-300">{t.rowCount.toLocaleString()} records</td>
                       <td className="py-3 px-6 text-slate-400">{t.sizeFormatted}</td>

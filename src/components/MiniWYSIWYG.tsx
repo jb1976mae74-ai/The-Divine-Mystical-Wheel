@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Bold, Italic, List, Table, Eraser, Check, Mic, MicOff } from 'lucide-react';
+import { triggerHapticFeedback } from '../utils/haptics';
 
 interface MiniWYSIWYGProps {
   value: string;
@@ -261,6 +262,7 @@ export default function MiniWYSIWYG({ value, onChange, placeholder = 'Capture yo
       recognition.onstart = () => {
         setIsListening(true);
         setVoiceError(null);
+        triggerHapticFeedback('start');
       };
 
       recognition.onerror = (e: any) => {
@@ -312,6 +314,7 @@ export default function MiniWYSIWYG({ value, onChange, placeholder = 'Capture yo
       recognitionRef.current = null;
     }
     setIsListening(false);
+    triggerHapticFeedback('finish');
   };
 
   const toggleListening = () => {

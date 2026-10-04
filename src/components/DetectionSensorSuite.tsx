@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { Mic, MicOff, Volume2, Brain, Flame, ShieldAlert, Radio, AlertTriangle, Sparkles, Activity, Eye, Zap, Crosshair } from 'lucide-react';
+import { triggerHapticFeedback } from '../utils/haptics';
 
 interface DetectionSensorSuiteProps {
   onAnalyzeInput: (type: 'voice' | 'thought' | 'essence' | 'noise', content: string) => void;
@@ -44,6 +45,7 @@ export const DetectionSensorSuite: React.FC<DetectionSensorSuiteProps> = ({
       analyserRef.current = analyser;
 
       setIsMicActive(true);
+      triggerHapticFeedback('start');
 
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
@@ -86,6 +88,7 @@ export const DetectionSensorSuite: React.FC<DetectionSensorSuiteProps> = ({
       audioContextRef.current = null;
     }
     setIsMicActive(false);
+    triggerHapticFeedback('finish');
   };
 
   useEffect(() => {

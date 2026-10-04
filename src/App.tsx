@@ -4,10 +4,13 @@
  */
 
 import React, { useMemo, useState, useEffect, useRef, Suspense, lazy } from 'react';
-import { Flame, Sparkles, Loader2, Send, Shuffle, Volume2, VolumeX, Notebook, History, X, Trash2, ChevronRight, Mic, MicOff, Search, Download, FileText, BookOpen, RotateCcw, Moon, GraduationCap, Compass, Crown, Eye, EyeOff, Heart, Database, Wifi, AlertCircle, CheckCircle2, AlertTriangle, FileDown, Share2, Copy, Check, Calendar, Scroll, Layers, Brain, PenTool, Pyramid, TrendingUp, TrendingDown, Orbit, ShieldAlert, Radio, Navigation, Building2, ShieldCheck, Globe, FlaskConical } from 'lucide-react';
+import { Flame, Sparkles, Loader2, Send, Shuffle, Volume2, VolumeX, Notebook, History, X, Trash2, ChevronRight, Mic, MicOff, Search, Download, FileText, BookOpen, RotateCcw, RotateCw, Moon, GraduationCap, Compass, Crown, Eye, EyeOff, Heart, Database, Wifi, AlertCircle, CheckCircle2, AlertTriangle, FileDown, Share2, Copy, Check, Calendar, Scroll, Layers, Brain, PenTool, Pyramid, TrendingUp, TrendingDown, Orbit, ShieldAlert, Radio, Navigation, Building2, ShieldCheck, Globe, FlaskConical, Terminal, FolderSearch, ListTodo } from 'lucide-react';
 import type { PdfExportOptions } from './utils/chroniclePdfExport';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence, animate } from 'motion/react';
+import { openGooglePicker } from './utils/googlePicker';
+import { getAccessToken, googleSignIn, initAuth } from './firebase';
+import { User } from 'firebase/auth';
 import { HeaderWrapper } from './components/HeaderWrapper';
 import TypewriterMarkdown from './components/TypewriterMarkdown';
 import KeyInsightsCard from './components/KeyInsightsCard';
@@ -22,6 +25,9 @@ import { InteractiveHeptagram } from './components/InteractiveHeptagram';
 import DeadSeaScrollsScholarship from './components/DeadSeaScrollsScholarship';
 import { audioSystem } from './utils/audioSystem';
 import { generateFailsafeResponse } from './utils/offlineFallback';
+import { SpinningCube3D } from './components/SpinningCube3D';
+import ElementalAffinityPanel from './components/ElementalAffinityPanel';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 // Lazy Loaded Portals & Visualizers for Fast Initial Page Load & Small Critical Bundle
 const ConsultationRadarChart = lazy(() => import('./components/ConsultationRadarChart'));
@@ -53,11 +59,16 @@ const ChroniclesTimeline = lazy(() => import('./components/ChroniclesTimeline'))
 const ConsultationChroniclesDrawer = lazy(() => import('./components/ConsultationChroniclesDrawer'));
 const BattleTactics = lazy(() => import('./components/BattleTactics'));
 const AnunnakiArchive = lazy(() => import('./components/AnunnakiArchive'));
-const ExtensiveLibraryPortal = lazy(() => import('./components/ExtensiveLibraryPortal'));
 const NexusServiceDemo = lazy(() => import('./components/NexusServiceDemo'));
 const ServiceLogViewer = lazy(() => import('./components/ServiceLogViewer'));
 const SocialShareModal = lazy(() => import('./components/SocialShareModal'));
-import { MysticGuideChat } from './components/MysticGuideChat';
+const TermuxArchPortal = lazy(() => import('./components/TermuxArchPortal'));
+const GoogleDocsSanctum = lazy(() => import('./components/GoogleDocsSanctum'));
+const GoogleTasksPortal = lazy(() => import('./components/GoogleTasksPortal'));
+import { MysticOracleChat } from './components/MysticOracleChat';
+import VoiceCommandOverlay from './components/VoiceCommandOverlay';
+import VoiceCommandsHelpModal from './components/VoiceCommandsHelpModal';
+import { syncInquiriesToFirebase } from './utils/syncInquiries';
 
 const TabSuspenseFallback: React.FC<{ name?: string }> = ({ name }) => (
   <div className="w-full max-w-7xl min-h-[420px] flex flex-col items-center justify-center p-12 text-center animate-pulse">
@@ -529,6 +540,14 @@ export default function App() {
     return localStorage.getItem("oracle-manual-zodiac-sign") || "";
   });
 
+  const [user, setUser] = useState<User | null>(null);
+
+  // Initialize Auth
+  useEffect(() => {
+    const unsubscribe = initAuth((u) => setUser(u));
+    return () => unsubscribe();
+  }, []);
+
   const autoZodiacSign = useMemo(() => {
     return birthDate ? getZodiacSignFromDate(birthDate) : "";
   }, [birthDate]);
@@ -559,6 +578,11 @@ export default function App() {
   }, [zodiacSign]);
 
   useEffect(() => {
+    const interval = setInterval(syncInquiriesToFirebase, 5 * 60 * 1000); // 5 minutes
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
     if (birthDate) {
       localStorage.setItem("oracle-birth-date", birthDate);
     }
@@ -576,6 +600,7 @@ export default function App() {
   const [question, setQuestion] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [triggerSaveNoteCounter, setTriggerSaveNoteCounter] = useState(0);
+  const [showVoiceHelp, setShowVoiceHelp] = useState(false);
   const [commandFeedback, setCommandFeedback] = useState<string | null>(null);
   const [school, setSchool] = useState<string>(() => {
     if (typeof window !== "undefined") {
@@ -616,6 +641,7 @@ export default function App() {
   const [lastInquiry, setLastInquiry] = useState<{ question: string; answer: string; school: string } | undefined>(undefined);
   const [aethericFallback, setAethericFallback] = useState(false);
   const [copiedAnswer, setCopiedAnswer] = useState(false);
+  const [copiedForKeep, setCopiedForKeep] = useState(false);
 
   const handleCopyAnswer = async (customText?: string) => {
     const textToCopy = customText || cleanAnswerMarkdown(answer);
@@ -626,6 +652,49 @@ export default function App() {
       setTimeout(() => setCopiedAnswer(false), 2500);
     } catch (err) {
       console.warn("Failed to copy answer to clipboard:", err);
+    }
+  };
+
+  const handleSendRevelationToKeep = async () => {
+    if (!answer) return;
+    const formatted = `📌 Oracle Revelation: "${question || 'Sacred Transmission'}"\n\n${cleanAnswerMarkdown(answer)}\n\n#TheGreatWheelOfMysteries #${school.replace(/\s+/g, '')} #CosmicRevelation\nhttps://keep.google.com`;
+    try {
+      await navigator.clipboard.writeText(formatted);
+      setCopiedForKeep(true);
+      setTimeout(() => setCopiedForKeep(false), 3000);
+      window.open('https://keep.google.com', '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      console.warn("Failed to copy to clipboard for Google Keep:", err);
+    }
+  };
+
+  const handlePickScrollForInquiry = async () => {
+    try {
+      let token = await getAccessToken();
+      if (!token) {
+        const signResult = await googleSignIn();
+        if (signResult) {
+          token = signResult.accessToken;
+        }
+      }
+      if (!token) {
+        alert('Please sign in with Google to browse and pick documents from Google Drive.');
+        return;
+      }
+
+      await openGooglePicker({
+        accessToken: token,
+        title: 'Select Sacred Text, Manuscript or Scroll from Google Drive',
+        onPicked: (file) => {
+          if (file.content) {
+            setQuestion(`Inquire regarding sacred text "${file.name}":\n\n${file.content.slice(0, 600)}`);
+          } else {
+            setQuestion(`Examine the sacred mystery within document "${file.name}" (MIME: ${file.mimeType})`);
+          }
+        }
+      });
+    } catch (err: any) {
+      console.warn('Google Picker error for inquiry:', err);
     }
   };
 
@@ -759,6 +828,8 @@ export default function App() {
 
 
   const [drawerOpen, setDrawerOpen] = useState(false);
+  
+  useKeyboardShortcuts(setDrawerOpen, selectTab);
   const [showExplanation, setShowExplanation] = useState(false);
   const [showAiRevelation, setShowAiRevelation] = useState(false);
   const [appRevelationArtifact, setAppRevelationArtifact] = useState<'sigil-zion' | 'statue' | 'apocalypse-dragon' | 'heptagram'>('sigil-zion');
@@ -2169,6 +2240,45 @@ export default function App() {
     submitSeek(randomQuestion, randomSchool);
   };
 
+  useEffect(() => {
+    // Expose helpers for Mobile WebView injectJavaScript bridges
+    (window as any).submitOracleQuery = (queryText: string, querySchool?: string) => {
+      if (!queryText) return;
+      setActiveTab('oracle');
+      setQuestion(queryText);
+      const chosenSchool = querySchool || school;
+      if (querySchool) setSchool(querySchool);
+      submitSeek(queryText, chosenSchool);
+    };
+
+    (window as any).setOracleQuery = (queryText: string) => {
+      setActiveTab('oracle');
+      setQuestion(queryText);
+    };
+
+    (window as any).sendRevelationToKeep = () => {
+      handleSendRevelationToKeep();
+    };
+
+    const handleMobileQueryEvent = (e: any) => {
+      const q = e?.detail?.query;
+      const s = e?.detail?.school;
+      if (q) {
+        (window as any).submitOracleQuery(q, s);
+      }
+    };
+
+    window.addEventListener('mobile-oracle-query', handleMobileQueryEvent);
+    window.addEventListener('mobile-keep-save', handleSendRevelationToKeep);
+    return () => {
+      delete (window as any).submitOracleQuery;
+      delete (window as any).setOracleQuery;
+      delete (window as any).sendRevelationToKeep;
+      window.removeEventListener('mobile-oracle-query', handleMobileQueryEvent);
+      window.removeEventListener('mobile-keep-save', handleSendRevelationToKeep);
+    };
+  }, [school]);
+
   const center = { x: 500, y: 500 };
   const starRadius = 250;
   const circleRadius = 280;
@@ -2515,23 +2625,6 @@ export default function App() {
               <span>Enoch Portal</span>
             </button>
 
-            {/* Extensive Library Tab Toggle Button */}
-            <button
-              onClick={() => selectTab("extensive-library")}
-              className={`flex-1 px-3.5 py-2.5 rounded-lg cursor-pointer transition-all flex items-center justify-center gap-2 font-medium min-w-[165px] ${
-                activeTab === "extensive-library"
-                  ? activeTheme.id === 'deep-void'
-                    ? 'bg-amber-950/50 text-amber-200 border border-amber-500/40 font-semibold shadow-inner ring-1 ring-amber-500/30'
-                    : activeTheme.id === 'ethereal-silver'
-                    ? 'bg-slate-900/40 text-slate-200 border border-amber-400/40'
-                    : 'bg-amber-950/50 text-amber-300 border border-amber-500/50 shadow-md shadow-amber-500/10'
-                  : 'text-slate-500 hover:text-slate-355'
-              }`}
-            >
-              <BookOpen className="w-3.5 h-3.5 text-amber-300" />
-              <span>Extensive Library</span>
-            </button>
-
             {/* Tradition Forge Tab Toggle Button */}
             <button
               onClick={() => selectTab("tradition-forge")}
@@ -2564,6 +2657,23 @@ export default function App() {
             >
               <Layers className="w-3.5 h-3.5" />
               <span>Tarot Divination</span>
+            </button>
+
+            {/* Sacred Scrolls (Google Tasks) Tab Toggle Button */}
+            <button
+              onClick={() => selectTab("scrolls")}
+              className={`flex-1 px-3.5 py-2.5 rounded-lg cursor-pointer transition-all flex items-center justify-center gap-2 font-medium min-w-[155px] ${
+                activeTab === "scrolls"
+                  ? activeTheme.id === 'deep-void'
+                    ? 'bg-violet-950/40 text-violet-200 border border-violet-500/30 font-semibold shadow-inner'
+                    : activeTheme.id === 'ethereal-silver'
+                    ? 'bg-slate-900/40 text-slate-200 border border-slate-400/30'
+                    : 'bg-amber-950/40 text-[#D4AF37] border border-[#D4AF37]/35'
+                  : 'text-slate-500 hover:text-slate-355'
+              }`}
+            >
+              <ListTodo className="w-3.5 h-3.5 text-amber-400" />
+              <span>Sacred Scrolls</span>
             </button>
 
             {/* Classroom Sanctum Tab Toggle Button */}
@@ -2610,6 +2720,18 @@ export default function App() {
             >
               <Brain className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
               <span>High-IQ Search Engines</span>
+            </button>
+
+            <button
+              onClick={() => selectTab("termux-arch")}
+              className={`flex-1 px-3.5 py-2.5 rounded-lg cursor-pointer transition-all flex items-center justify-center gap-2 font-medium min-w-[165px] ${
+                activeTab === "termux-arch"
+                  ? 'bg-cyan-950/60 text-cyan-200 border border-cyan-400/60 shadow-lg shadow-cyan-500/10 font-semibold'
+                  : 'text-slate-500 hover:text-cyan-300'
+              }`}
+            >
+              <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+              <span>TermuxArch Builder</span>
             </button>
 
             {/* Holy Bible Portal Tab Toggle Button */}
@@ -2688,6 +2810,34 @@ export default function App() {
               <FlaskConical className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform animate-pulse" />
               <span className="tracking-wide">Manifestation Lab</span>
               <span className="px-1.5 py-0.2 text-[9px] font-bold bg-amber-500/30 text-amber-300 border border-amber-400/40 rounded-full">Alchemical</span>
+            </button>
+
+            {/* Grimoire, Google Keep & Picker Hub Tab Toggle Button */}
+            <button
+              onClick={() => selectTab("grimoire")}
+              className={`flex-1 px-3.5 py-2.5 rounded-lg cursor-pointer transition-all flex items-center justify-center gap-2 font-medium min-w-[210px] relative overflow-hidden group ${
+                activeTab === "grimoire"
+                  ? 'bg-gradient-to-r from-amber-950/80 via-sky-950/70 to-purple-950/80 text-amber-200 border border-sky-400/80 shadow-lg shadow-sky-950/50 font-bold ring-1 ring-sky-400/50'
+                  : 'text-sky-300/80 hover:text-sky-200 hover:bg-sky-950/20 border border-transparent hover:border-sky-500/30'
+              }`}
+            >
+              <FolderSearch className="w-3.5 h-3.5 text-sky-400 group-hover:scale-110 transition-transform" />
+              <span className="tracking-wide">Keep & Picker Grimoire</span>
+              <span className="px-1.5 py-0.2 text-[9px] font-bold bg-sky-500/30 text-sky-200 border border-sky-400/40 rounded-full">Workspace</span>
+            </button>
+
+            {/* Spinning 3D Cube Tab Toggle Button */}
+            <button
+              onClick={() => selectTab("cube")}
+              className={`flex-1 px-3.5 py-2.5 rounded-lg cursor-pointer transition-all flex items-center justify-center gap-2 font-medium min-w-[160px] relative overflow-hidden group ${
+                activeTab === "cube"
+                  ? 'bg-gradient-to-r from-amber-950/80 via-purple-950/70 to-indigo-950/80 text-amber-200 border border-amber-400/80 shadow-lg shadow-amber-950/50 font-bold ring-1 ring-amber-400/50'
+                  : 'text-amber-400 hover:text-amber-200 hover:bg-amber-950/20 border border-transparent hover:border-amber-500/30'
+              }`}
+            >
+              <RotateCw className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-180 transition-transform duration-500" />
+              <span className="tracking-wide">3D Mystic Cube</span>
+              <span className="px-1.5 py-0.2 text-[9px] font-bold bg-amber-500/30 text-amber-300 border border-amber-400/40 rounded-full">3D</span>
             </button>
 
             {/* Secure Admin Dashboard Tab Toggle Button */}
@@ -2991,13 +3141,24 @@ export default function App() {
               <h2 className={`text-2xl font-serif ${activeTheme.textPrimary} flex items-center gap-2`}>
                 <Sparkles className={`w-6 h-6 ${activeTheme.id === 'deep-void' ? 'text-violet-400' : activeTheme.id === 'ethereal-silver' ? 'text-slate-300' : 'text-amber-500'}`} /> Consult the Oracle
               </h2>
-              <button
-                onClick={toggleSound}
-                className={`text-slate-400 hover:${activeTheme.textPrimary} transition-colors p-2 rounded-lg hover:bg-white/5 animate-pulse cursor-pointer`}
-                title={soundEnabled ? "Mute Oracle" : "Unmute Oracle"}
-              >
-                {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowVoiceHelp(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-serif transition-all cursor-pointer"
+                  title="View all available voice commands"
+                >
+                  <Mic className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                  <span>Voice Guide</span>
+                </button>
+                <button
+                  onClick={toggleSound}
+                  className={`text-slate-400 hover:${activeTheme.textPrimary} transition-colors p-2 rounded-lg hover:bg-white/5 animate-pulse cursor-pointer`}
+                  title={soundEnabled ? "Mute Oracle" : "Unmute Oracle"}
+                >
+                  {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
 
             {/* Real-time audio waveform visualizer component reacting to generated speech */}
@@ -3255,31 +3416,43 @@ export default function App() {
                   </AnimatePresence>
                 </div>
                 
-                {/* Quick Invocations chip array */}
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  <span className="text-[10px] text-slate-500 self-center uppercase tracking-wide font-mono mr-1">Quick Invocations:</span>
-                  {[
-                    "What is my alchemical shadow?",
-                    "How can I align with the aetheric current?",
-                    "What does the cosmic oracle say of my destiny?",
-                    "Reveal the harmony of our spirits.",
-                    "What hidden truth lies in the void?"
-                  ].map((tpl, idx) => (
-                    <button
-                      key={`tpl-${idx}`}
-                      type="button"
-                      onClick={() => setQuestion(tpl)}
-                      className={`text-[10px] px-2.5 py-1 rounded-full border bg-black/40 ${
-                        activeTheme.id === 'deep-void' 
-                          ? 'border-violet-500/20 text-violet-400 hover:border-violet-400/50 hover:bg-violet-950/20' 
-                          : activeTheme.id === 'ethereal-silver' 
-                          ? 'border-slate-500/20 text-slate-400 hover:border-slate-400/50 hover:bg-slate-900/20' 
-                          : 'border-amber-500/20 text-amber-500/80 hover:border-amber-500/50 hover:bg-amber-950/20'
-                      } transition-all text-left font-serif cursor-pointer`}
-                    >
-                      {tpl}
-                    </button>
-                  ))}
+                {/* Quick Invocations chip array & Drive Picker */}
+                <div className="flex flex-wrap items-center justify-between gap-1.5 mt-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] text-slate-500 self-center uppercase tracking-wide font-mono mr-1">Quick Invocations:</span>
+                    {[
+                      "What is the Great Work?",
+                      "Explain the Tree of Life",
+                      "Define the Demiurge",
+                      "What is my alchemical shadow?",
+                      "Reveal the harmony of our spirits."
+                    ].map((tpl, idx) => (
+                      <button
+                        key={`tpl-${idx}`}
+                        type="button"
+                        onClick={() => setQuestion(tpl)}
+                        className={`text-[10px] px-2.5 py-1 rounded-full border bg-black/40 ${
+                          activeTheme.id === 'deep-void' 
+                            ? 'border-violet-500/20 text-violet-400 hover:border-violet-400/50 hover:bg-violet-950/20' 
+                            : activeTheme.id === 'ethereal-silver' 
+                            ? 'border-slate-500/20 text-slate-400 hover:border-slate-400/50 hover:bg-slate-900/20' 
+                            : 'border-amber-500/20 text-amber-500/80 hover:border-amber-500/50 hover:bg-amber-950/20'
+                        } transition-all text-left font-serif cursor-pointer`}
+                      >
+                        {tpl}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handlePickScrollForInquiry}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-serif border border-sky-500/30 bg-sky-950/40 hover:bg-sky-900/50 text-sky-300 transition-all cursor-pointer shadow-sm"
+                    title="Select a sacred manuscript or scroll from Google Drive via Google Picker"
+                  >
+                    <FolderSearch className="w-3 h-3 text-sky-400" />
+                    <span>Pick Scroll (Drive)</span>
+                  </button>
                 </div>
               </div>
 
@@ -3403,6 +3576,25 @@ export default function App() {
                               <>
                                 <Copy className="w-3.5 h-3.5" />
                                 <span>Copy Answer</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={handleSendRevelationToKeep}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer border shadow-sm bg-amber-500/15 border-amber-400/30 text-amber-300 hover:bg-amber-500/25"
+                            title="Format and copy revelation for Google Keep, then open Google Keep"
+                          >
+                            {copiedForKeep ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>Copied for Keep!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5 text-amber-400" />
+                                <span>Send to Keep</span>
                               </>
                             )}
                           </button>
@@ -3976,6 +4168,15 @@ export default function App() {
                         </div>
                       )}
 
+                      {/* Elemental Affinity Panel */}
+                      <div className="w-full mt-3">
+                        <ElementalAffinityPanel
+                          zodiacSign={zodiacSign}
+                          metrics={animatedMetrics}
+                          activeTheme={activeTheme}
+                        />
+                      </div>
+
                       {/* Qualitative Interpretation of the Radar Chart */}
                       <div className="w-full mt-4 pt-4 border-t border-white/5 flex flex-col items-stretch text-left">
                         <span className={`text-[10px] tracking-[0.15em] font-mono ${activeTheme.id === 'deep-void' ? 'text-[#c084fc]' : activeTheme.id === 'ethereal-silver' ? 'text-slate-300' : 'text-amber-500'} font-semibold mb-2 uppercase flex items-center gap-1.5`}>
@@ -4195,19 +4396,6 @@ export default function App() {
               <EnochScholarshipPortal activeTheme={activeTheme} />
             </Suspense>
           </motion.div>
-        ) : activeTab === "extensive-library" ? (
-          <motion.div
-            key="extensive-library-workspace"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.4 }}
-            className="w-full max-w-7xl"
-          >
-            <Suspense fallback={<TabSuspenseFallback name="Extensive Library Portal" />}>
-              <ExtensiveLibraryPortal activeTheme={activeTheme} />
-            </Suspense>
-          </motion.div>
         ) : activeTab === "tradition-forge" ? (
           <motion.div
             key="tradition-forge-workspace"
@@ -4263,6 +4451,28 @@ export default function App() {
           >
             <HighIntelligenceSearchEngine theme={activeTheme} />
           </motion.div>
+        ) : activeTab === "termux-arch" ? (
+          <motion.div
+            key="termux-arch-workspace"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-7xl"
+          >
+            <TermuxArchPortal theme={activeTheme} />
+          </motion.div>
+        ) : activeTab === "google-docs" ? (
+          <motion.div
+            key="google-docs-workspace"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-7xl"
+          >
+            <GoogleDocsSanctum activeTheme={activeTheme} />
+          </motion.div>
         ) : activeTab === "natal" ? (
           <motion.div
             key="natal-workspace"
@@ -4289,7 +4499,14 @@ export default function App() {
             transition={{ duration: 0.4 }}
             className="w-full max-w-7xl"
           >
-            <HolyBiblePortal activeTheme={activeTheme} />
+            <HolyBiblePortal 
+              activeTheme={activeTheme}
+              onReferenceInOracle={(refText) => {
+                setQuestion(prev => prev ? `${prev} ${refText}` : `Reflecting upon ${refText}: `);
+                setActiveTab('oracle');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           </motion.div>
         ) : activeTab === "quran" ? (
           <motion.div
@@ -4335,6 +4552,26 @@ export default function App() {
           >
             <AdminDashboard activeTheme={activeTheme} currentUserEmail="jb1976mae74@gmail.com" />
           </motion.div>
+        ) : activeTab === "scrolls" ? (
+          <motion.div
+            key="scrolls-workspace"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-7xl"
+          >
+            <GoogleTasksPortal 
+              activeTheme={activeTheme} 
+              user={user} 
+              onScryQuery={(q, s) => {
+                setQuestion(q);
+                if (s) setSchool(s);
+                selectTab("oracle");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            />
+          </motion.div>
         ) : activeTab === "enochian" ? (
           <motion.div
             key="enochian-workspace"
@@ -4363,6 +4600,32 @@ export default function App() {
                 selectTab("consultation");
               }}
             />
+          </motion.div>
+        ) : activeTab === "grimoire" ? (
+          <motion.div
+            key="grimoire-workspace"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-7xl"
+          >
+            <GrimoireNotes 
+              lastInquiry={pastInquiries[0]} 
+              activeTheme={activeTheme} 
+              triggerSaveNoteCounter={triggerSaveNoteCounter} 
+            />
+          </motion.div>
+        ) : activeTab === "cube" ? (
+          <motion.div
+            key="cube-workspace"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-4xl"
+          >
+            <SpinningCube3D />
           </motion.div>
         ) : null}
         </Suspense>
@@ -4565,7 +4828,94 @@ export default function App() {
       <Suspense fallback={null}>
         <ServiceLogViewer />
       </Suspense>
-      <MysticGuideChat />
+      <MysticOracleChat isOpenInitial={true} />
+      <VoiceCommandsHelpModal 
+        isOpen={showVoiceHelp}
+        onClose={() => setShowVoiceHelp(false)}
+        activeTheme={activeTheme}
+      />
+      <VoiceCommandOverlay command={commandFeedback} activeTheme={activeTheme} />
+
+      {/* Floating Database Connection Status Toast */}
+      <AnimatePresence>
+        {dbToast && (
+          <div className="fixed bottom-6 right-6 z-[80] w-full max-w-sm px-4 md:px-0">
+            <motion.div
+              initial={{ opacity: 0, y: 30, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.9, transition: { duration: 0.2 } }}
+              transition={{ type: "spring", damping: 20, stiffness: 300 }}
+              className={`relative overflow-hidden rounded-xl border p-4 backdrop-blur-md bg-[#0a0a0d]/95 shadow-2xl flex gap-3 text-left ${
+                dbToast.type === 'success'
+                  ? 'border-emerald-500/30 shadow-emerald-950/30'
+                  : dbToast.type === 'warning'
+                  ? 'border-amber-500/30 shadow-amber-950/30'
+                  : 'border-red-500/30 shadow-red-950/30'
+              }`}
+            >
+              {/* Colored top glow bar */}
+              <div className={`absolute top-0 left-0 right-0 h-1 ${
+                dbToast.type === 'success'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                  : dbToast.type === 'warning'
+                  ? 'bg-gradient-to-r from-amber-500 to-yellow-500'
+                  : 'bg-gradient-to-r from-red-500 to-rose-500'
+              }`} />
+
+              {/* Icon */}
+              <div className={`p-2 rounded-lg border h-10 w-10 flex items-center justify-center shrink-0 mt-0.5 ${
+                dbToast.type === 'success'
+                  ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400'
+                  : dbToast.type === 'warning'
+                  ? 'bg-amber-500/5 border-amber-500/20 text-amber-400'
+                  : 'bg-red-500/5 border-red-500/20 text-red-400'
+              }`}>
+                {dbToast.type === 'success' ? (
+                  <Database className="w-5 h-5 shrink-0" />
+                ) : dbToast.type === 'warning' ? (
+                  <Wifi className="w-5 h-5 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 shrink-0" />
+                )}
+              </div>
+
+              {/* Text */}
+              <div className="flex-1 flex flex-col gap-1 pr-4">
+                <span className={`text-[10px] uppercase font-mono tracking-widest font-bold ${
+                  dbToast.type === 'success'
+                    ? 'text-emerald-400'
+                    : dbToast.type === 'warning'
+                    ? 'text-amber-400'
+                    : 'text-red-400'
+                }`}>
+                  {dbToast.type === 'success' 
+                    ? 'Aetheric Link Online' 
+                    : dbToast.type === 'warning' 
+                    ? 'Offline Mode Active' 
+                    : 'Aetheric Connection Error'}
+                </span>
+                <p className="text-xs font-serif text-slate-200 leading-relaxed font-medium">
+                  {dbToast.message}
+                </p>
+                {dbToast.details && (
+                  <p className="text-[10px] font-mono text-slate-500 leading-normal mt-1 border-t border-white/5 pt-1 break-all">
+                    {dbToast.details}
+                  </p>
+                )}
+              </div>
+
+              {/* Close Button */}
+              <button
+                onClick={() => setDbToast(null)}
+                className="absolute top-2 right-2 p-1 rounded-md text-slate-500 hover:text-slate-300 hover:bg-white/5 transition-all cursor-pointer"
+                aria-label="Dismiss Notification"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

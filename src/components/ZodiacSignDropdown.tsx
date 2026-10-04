@@ -204,12 +204,19 @@ export default function ZodiacSignDropdown({
       {isManualActive ? (
         /* MANUAL SELECT MODE: Active Dropdown Selector */
         <div className="relative w-full">
-          <button
-            type="button"
+          <div
             id="zodiac-dropdown-trigger"
-            onClick={() => setIsOpen(!isOpen)}
+            role="combobox"
             aria-haspopup="listbox"
             aria-expanded={isOpen}
+            tabIndex={0}
+            onClick={() => setIsOpen(!isOpen)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsOpen(!isOpen);
+              }
+            }}
             className={`w-full bg-black/60 border ${
               isOpen 
                 ? activeTheme.id === 'deep-void' 
@@ -218,7 +225,7 @@ export default function ZodiacSignDropdown({
                   ? 'border-slate-300 ring-1 ring-slate-300/40' 
                   : 'border-[#D4AF37] ring-1 ring-[#D4AF37]/40'
                 : 'border-amber-500/40 hover:border-amber-500/60'
-            } rounded-lg px-3.5 py-2.5 text-left transition-all duration-200 cursor-pointer flex items-center justify-between group shadow-inner`}
+            } rounded-lg px-3.5 py-2.5 text-left transition-all duration-200 cursor-pointer flex items-center justify-between group shadow-inner focus:outline-none focus:ring-1 focus:ring-amber-500/40`}
           >
             <div className="flex items-center gap-2.5 overflow-hidden">
               {effectiveSign && effectiveMeta ? (
@@ -355,7 +362,7 @@ export default function ZodiacSignDropdown({
                 }`} 
               />
             </div>
-          </button>
+          </div>
 
           {/* Custom Animated Dropdown Menu */}
           <AnimatePresence>

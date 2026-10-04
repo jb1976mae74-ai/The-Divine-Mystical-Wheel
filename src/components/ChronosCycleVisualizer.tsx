@@ -1070,7 +1070,7 @@ export default function ChronosCycleVisualizer({
                     const isActive = selectedPhaseIndex === index;
 
                     return (
-                      <div key={phase.name}>
+                      <div key={`${phase.name}-${index}`}>
                         <svg className="absolute inset-0 w-full h-full pointer-events-none">
                           <line
                             x1="100"
@@ -1107,7 +1107,7 @@ export default function ChronosCycleVisualizer({
                 <div className="flex gap-2.5 mt-5">
                   {evaluatedPhases.map((phase, idx) => (
                     <button
-                      key={phase.name}
+                      key={`${phase.name}-${idx}`}
                       onClick={() => setSelectedPhaseIndex(idx)}
                       className={`w-2.5 h-2.5 rounded-full border transition-all cursor-pointer ${
                         selectedPhaseIndex === idx

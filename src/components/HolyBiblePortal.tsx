@@ -25,9 +25,10 @@ interface HolyBiblePortalProps {
     borderAccent: string;
     inputFocus: string;
   };
+  onReferenceInOracle?: (referenceText: string) => void;
 }
 
-export default function HolyBiblePortal({ activeTheme }: HolyBiblePortalProps) {
+export default function HolyBiblePortal({ activeTheme, onReferenceInOracle }: HolyBiblePortalProps) {
   const [activeTab, setActiveTab] = useState<"reader" | "sword-repositories">("reader");
 
   const [selectedTestament, setSelectedTestament] = useState<string>("all");
@@ -70,6 +71,59 @@ export default function HolyBiblePortal({ activeTheme }: HolyBiblePortalProps) {
   const [fetchingManifest, setFetchingManifest] = useState<boolean>(false);
   const [manifestResult, setManifestResult] = useState<{ status: "success" | "error" | null; message?: string; modules?: any[] }>({ status: null });
   const [copiedJsonRepo, setCopiedJsonRepo] = useState<string | null>(null);
+
+  // SWORD Package/Module Installation State
+  const [installedModules, setInstalledModules] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("installed_bible_modules");
+      return saved ? JSON.parse(saved) : ["test-kjv", "test-exegesis"]; // default installed
+    } catch {
+      return ["test-kjv", "test-exegesis"];
+    }
+  });
+  const [installingModuleId, setInstallingModuleId] = useState<string | null>(null);
+  const [installProgress, setInstallProgress] = useState<number>(0);
+
+  // Save installed modules when changed
+  useEffect(() => {
+    try {
+      localStorage.setItem("installed_bible_modules", JSON.stringify(installedModules));
+    } catch {}
+  }, [installedModules]);
+
+  const handleInstallModule = (moduleId: string, moduleName: string) => {
+    if (installedModules.includes(moduleId) || installingModuleId) return;
+
+    setInstallingModuleId(moduleId);
+    setInstallProgress(0);
+
+    const steps = [
+      { progress: 15, delay: 400 },
+      { progress: 45, delay: 1000 },
+      { progress: 75, delay: 1600 },
+      { progress: 95, delay: 2200 },
+      { progress: 100, delay: 2800 }
+    ];
+
+    steps.forEach((step) => {
+      setTimeout(() => {
+        setInstallProgress(step.progress);
+        if (step.progress === 100) {
+          setInstalledModules(prev => {
+            if (!prev.includes(moduleId)) {
+              return [...prev, moduleId];
+            }
+            return prev;
+          });
+          setInstallingModuleId(null);
+        }
+      }, step.delay);
+    });
+  };
+
+  const handleUninstallModule = (moduleId: string) => {
+    setInstalledModules(prev => prev.filter(id => id !== moduleId));
+  };
 
   // New Repository Modal/Form State
   const [showAddRepoModal, setShowAddRepoModal] = useState<boolean>(false);
@@ -224,6 +278,13 @@ export default function HolyBiblePortal({ activeTheme }: HolyBiblePortalProps) {
     navigator.clipboard.writeText(textToCopy);
     setCopiedId(`${bookName}-${chapterNum}-${verse.number}`);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleReferenceInOracle = (verseText: string, bookName: string, chapterNum: number, verseNum: number) => {
+    if (onReferenceInOracle) {
+      const refString = `[${bookName} ${chapterNum}:${verseNum}] "${verseText}"`;
+      onReferenceInOracle(refString);
+    }
   };
 
   const handleSaveToGrimoire = (verse: BibleVerse, bookName: string, chapterNum: number) => {
@@ -442,58 +503,117 @@ ${verse.crossReferences ? `**Parallel Cross-References:** ${verse.crossReference
             </div>
           )}
 
-          {/* All Repository Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {repositories.map((repo, idx) => (
-              <div 
-                key={`repo-card-${idx}`}
-                className="p-5 rounded-xl bg-black/40 border border-white/10 hover:border-amber-500/40 transition-all flex flex-col justify-between gap-4 backdrop-blur-sm"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/10 border border-amber-500/20 text-amber-300 uppercase">
-                      {repo.type}
-                    </span>
-                    <span className="flex items-center gap-1 text-[11px] font-mono text-green-400">
-                      <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                      {repo.status || "online"}
-                    </span>
-                  </div>
-
-                  <h5 className="text-lg font-serif font-bold text-amber-100">
-                    {repo.name}
-                  </h5>
-                  <p className="text-xs text-slate-300 mt-1 line-clamp-2">
-                    {repo.description}
-                  </p>
-
-                  <div className="mt-3 p-2.5 rounded bg-white/5 border border-white/5 text-[11px] font-mono space-y-1 text-slate-400">
-                    <div className="truncate"><strong className="text-amber-400/80">Host:</strong> {repo.host}</div>
-                    <div className="truncate"><strong className="text-amber-400/80">Catalog:</strong> {repo.catalogDirectory}</div>
-                    <div className="truncate"><strong className="text-amber-400/80">Packages:</strong> {repo.packageDirectory}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 pt-2 border-t border-white/5">
-                  <button
-                    onClick={() => handleFetchManifest(repo)}
-                    disabled={fetchingManifest && inspectingRepo?.name === repo.name}
-                    className="flex-1 py-1.5 px-3 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 text-xs font-mono flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+          {/* Two-Column SWORD Module Package Installer & Repositories Layout */}
+          <div className="flex flex-col lg:flex-row gap-6 items-start">
+            {/* Left Column: Repository Grid (2/3 width) */}
+            <div className="flex-1 flex flex-col gap-6 w-full lg:w-2/3">
+              <span className="text-xs font-mono text-amber-400 font-bold uppercase tracking-wider block mb-1">
+                Active SWORD Module Repositories
+              </span>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {repositories.map((repo, idx) => (
+                  <div 
+                    key={`repo-card-${idx}`}
+                    className="p-5 rounded-xl bg-black/40 border border-white/10 hover:border-amber-500/40 transition-all flex flex-col justify-between gap-4 backdrop-blur-sm"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${fetchingManifest && inspectingRepo?.name === repo.name ? "animate-spin" : ""}`} />
-                    <span>Test Manifest</span>
-                  </button>
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/10 border border-amber-500/20 text-amber-300 uppercase">
+                          {repo.type}
+                        </span>
+                        <span className="flex items-center gap-1 text-[11px] font-mono text-green-400">
+                          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                          {repo.status || "online"}
+                        </span>
+                      </div>
 
-                  <button
-                    onClick={() => handleCopyRepoJson(repo)}
-                    className="py-1.5 px-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 flex items-center gap-1 cursor-pointer"
-                    title="Copy Spec JSON"
-                  >
-                    {copiedJsonRepo === repo.name ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Code2 className="w-3.5 h-3.5 text-amber-400" />}
-                  </button>
-                </div>
+                      <h5 className="text-lg font-serif font-bold text-amber-100">
+                        {repo.name}
+                      </h5>
+                      <p className="text-xs text-slate-300 mt-1 line-clamp-2">
+                        {repo.description}
+                      </p>
+
+                      <div className="mt-3 p-2.5 rounded bg-white/5 border border-white/5 text-[11px] font-mono space-y-1 text-slate-400">
+                        <div className="truncate"><strong className="text-amber-400/80">Host:</strong> {repo.host}</div>
+                        <div className="truncate"><strong className="text-amber-400/80">Catalog:</strong> {repo.catalogDirectory}</div>
+                        <div className="truncate"><strong className="text-amber-400/80">Packages:</strong> {repo.packageDirectory}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-white/5">
+                      <button
+                        onClick={() => handleFetchManifest(repo)}
+                        disabled={fetchingManifest && inspectingRepo?.name === repo.name}
+                        className="flex-1 py-1.5 px-3 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 text-xs font-mono flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${fetchingManifest && inspectingRepo?.name === repo.name ? "animate-spin" : ""}`} />
+                        <span>Test Manifest</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleCopyRepoJson(repo)}
+                        className="py-1.5 px-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 flex items-center gap-1 cursor-pointer"
+                        title="Copy Spec JSON"
+                      >
+                        {copiedJsonRepo === repo.name ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Code2 className="w-3.5 h-3.5 text-amber-400" />}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            {/* Right Column: Installed Packages (1/3 width) */}
+            <div className="w-full lg:w-1/3 p-6 rounded-2xl bg-[#0d0f19] border border-amber-500/20 flex flex-col gap-4 backdrop-blur-md">
+              <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+                <Bookmark className="w-5 h-5 text-amber-400" />
+                <h4 className="text-sm font-serif font-bold text-amber-200 uppercase tracking-wider">
+                  Installed SWORD Modules
+                </h4>
+              </div>
+
+              {installedModules.length === 0 ? (
+                <div className="p-6 text-center text-xs font-mono text-slate-500 border border-dashed border-white/5 rounded-xl">
+                  No custom modules currently installed. Use the Manifest Inspector on any repository to download packages.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {installedModules.map((id, index) => {
+                    let name = id === "test-kjv" ? "AndBible Test Scripture Module" :
+                               id === "test-exegesis" ? "AndBible Exegetical Commentary" :
+                               id === "test-strongs" ? "Strongs Concordance Greek/Hebrew" :
+                               id === "andbible-test-b1" ? "AndBible Test Canon Module" :
+                               id === "andbible-test-c1" ? "AndBible Test Commentary" :
+                               id === "ebible.org-open-scripture-repository-b1" ? "eBible Canon Module" :
+                               id === "ebible.org-open-scripture-repository-c1" ? "eBible Test Commentary" :
+                               `Downloaded Package: ${id}`;
+                    let type = id.includes("exegesis") || id.includes("-c1") ? "Commentary" : id.includes("strongs") ? "Dictionary" : "Bible";
+                    
+                    return (
+                      <div key={`installed-mod-${id}-${index}`} className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between gap-3 text-xs font-mono">
+                        <div className="space-y-0.5 truncate">
+                          <div className="font-bold text-slate-200 truncate">{name}</div>
+                          <div className="text-[10px] text-slate-500 flex items-center gap-2">
+                            <span>ID: {id}</span>
+                            <span>•</span>
+                            <span className="text-amber-400/80">{type}</span>
+                          </div>
+                        </div>
+                        
+                        <button
+                          onClick={() => handleUninstallModule(id)}
+                          className="px-2 py-1 rounded bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 text-red-400 hover:text-red-300 text-[10px] font-sans font-medium cursor-pointer transition-all shrink-0"
+                        >
+                          Uninstall
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Manifest Inspector Results Section */}
@@ -531,16 +651,55 @@ ${verse.crossReferences ? `**Parallel Cross-References:** ${verse.crossReference
                       Catalog Modules Detected ({manifestResult.modules?.length || 0}):
                     </span>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {manifestResult.modules?.map((mod, i) => (
-                        <div key={`mod-${i}`} className="p-3 rounded-lg bg-white/5 border border-white/5 text-xs font-mono space-y-1">
-                          <div className="font-bold text-amber-200">{mod.name || mod.id}</div>
-                          <div className="text-slate-400 text-[11px]">{mod.description || "SWORD Canon Data Module"}</div>
-                          <div className="flex items-center justify-between pt-1 text-[10px] text-slate-500">
-                            <span>Type: {mod.type || "Bible"}</span>
-                            <span>v{mod.version || "1.0"}</span>
+                      {manifestResult.modules?.map((mod, i) => {
+                        const isInstalled = installedModules.includes(mod.id);
+                        const isInstalling = installingModuleId === mod.id;
+                        return (
+                          <div key={`mod-${i}`} className="p-3.5 rounded-xl bg-white/5 border border-white/5 hover:border-amber-500/20 transition-all text-xs font-mono flex flex-col justify-between gap-3 relative overflow-hidden">
+                            <div className="space-y-1">
+                              <div className="font-bold text-amber-200">{mod.name || mod.id}</div>
+                              <div className="text-slate-400 text-[11px] leading-relaxed line-clamp-2">{mod.description || "SWORD Canon Data Module"}</div>
+                              <div className="flex items-center justify-between pt-1 text-[10px] text-slate-500">
+                                <span>Type: {mod.type || "Bible"}</span>
+                                <span>v{mod.version || "1.0"}</span>
+                              </div>
+                            </div>
+
+                            <div className="pt-2 border-t border-white/5 flex flex-col gap-1.5">
+                              {isInstalled ? (
+                                <div className="py-1 px-2.5 rounded bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-bold flex items-center justify-center gap-1">
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Package Installed</span>
+                                </div>
+                              ) : isInstalling ? (
+                                <div className="space-y-1">
+                                  <div className="flex justify-between text-[9px] text-amber-400">
+                                    <span>Downloading...</span>
+                                    <span>{installProgress}%</span>
+                                  </div>
+                                  <div className="w-full bg-black/40 h-1.5 rounded-full overflow-hidden border border-white/5">
+                                    <div 
+                                      className="bg-amber-500 h-full rounded-full transition-all duration-300"
+                                      style={{ width: `${installProgress}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handleInstallModule(mod.id, mod.name || mod.id)}
+                                  disabled={!!installingModuleId}
+                                  className={`w-full py-1 px-2 rounded bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 hover:text-amber-200 cursor-pointer flex items-center justify-center gap-1.5 transition-all text-[11px] ${
+                                    installingModuleId ? 'opacity-50 cursor-not-allowed' : ''
+                                  }`}
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span>Install Module</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -829,6 +988,17 @@ ${verse.crossReferences ? `**Parallel Cross-References:** ${verse.crossReference
                           )}
                           <span>Save Study</span>
                         </button>
+
+                        {onReferenceInOracle && (
+                          <button
+                            onClick={() => handleReferenceInOracle(verse.text, book.name, chapterNum, verse.number)}
+                            className="px-2.5 py-1 rounded bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-xs flex items-center gap-1 cursor-pointer"
+                            title="Reference verse directly in Oracle inquiry"
+                          >
+                            <Sparkles className="w-3 h-3 text-sky-400" />
+                            <span>Reference Oracle</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1001,6 +1171,17 @@ ${verse.crossReferences ? `**Parallel Cross-References:** ${verse.crossReference
                           )}
                           <span className="hidden sm:inline">Save Study</span>
                         </button>
+
+                        {onReferenceInOracle && (
+                          <button
+                            onClick={() => handleReferenceInOracle(verse.text, currentBook.name, currentChapter.chapterNumber, verse.number)}
+                            className="p-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 transition-all cursor-pointer text-xs flex items-center gap-1"
+                            title="Reference verse directly in Oracle inquiry"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                            <span className="hidden sm:inline">Reference Oracle</span>
+                          </button>
+                        )}
                       </div>
                     </div>
 

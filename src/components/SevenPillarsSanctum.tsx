@@ -285,7 +285,7 @@ export default function SevenPillarsSanctum({ activeTheme }: SevenPillarsSanctum
               </h4>
               <div className="space-y-2">
                 {selectedPillar.scripturalFoundations.map((verse, i) => (
-                  <div key={i} className="text-xs text-neutral-300 bg-neutral-950 p-3 rounded-xl border border-neutral-800/80 flex items-start gap-2">
+                  <div key={`${selectedPillar.id}-${i}-${verse.substring(0, 10)}`} className="text-xs text-neutral-300 bg-neutral-950 p-3 rounded-xl border border-neutral-800/80 flex items-start gap-2">
                     <span className="text-amber-400 font-bold">§</span>
                     <span>{verse}</span>
                   </div>

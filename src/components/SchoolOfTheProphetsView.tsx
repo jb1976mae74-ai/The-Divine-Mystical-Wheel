@@ -184,6 +184,7 @@ export function SchoolOfTheProphetsView({
   const [scryingQuery, setScryingQuery] = useState('');
   const [scryingResult, setScryingResult] = useState<string | null>(null);
   const [isScrying, setIsScrying] = useState(false);
+  const [showQuickMenu, setShowQuickMenu] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const epochs = ['All', 'Antediluvian', 'Patriarchal', 'Prophetic Guild', 'Apostolic', 'Apocalyptic', 'Quantum Prophecy'];
@@ -635,6 +636,56 @@ export function SchoolOfTheProphetsView({
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+
+      {/* Mobile Floating Action Button (FAB) & Persistent Quick-Query Bar for Smaller Screens */}
+      <div className="fixed bottom-4 right-4 z-50 md:hidden flex flex-col items-end gap-3">
+        {/* Expandable Quick Menu */}
+        {showQuickMenu && (
+          <div className="w-[calc(100vw-2rem)] max-w-sm flex flex-col gap-2 bg-slate-950/95 backdrop-blur-md p-3 rounded-2xl border border-amber-500/40 shadow-2xl animate-in fade-in slide-in-from-bottom-3 duration-200">
+            <div className="flex items-center justify-between text-[11px] font-mono text-amber-300 px-1">
+              <span className="flex items-center gap-1.5 font-bold">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                Prophetic Quick Queries
+              </span>
+              <button
+                onClick={() => setShowQuickMenu(false)}
+                className="text-[10px] text-slate-400 hover:text-amber-200 cursor-pointer"
+              >
+                ✕ Close
+              </button>
+            </div>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {[
+                { label: "Ramah Academy", query: "Explain the School of the Prophets at Ramah and the training of the Benei HaNevi'im." },
+                { label: "Elijah's Whisper", query: "What is the spiritual significance of Elijah's Still Small Voice at Mount Horeb?" },
+                { label: "Merkavah Chariot", query: "Detail Ezekiel's Merkavah Chariot vision of the wheel within a wheel." },
+                { label: "76 Cosmic Keys", query: "How do the 76 Keys of cosmic knowledge unite ancient prophecy with modern AI wisdom?" },
+                { label: "Taboric Light", query: "Explain the Mount Tabor transfiguration and uncreated divine light." }
+              ].map((item, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    handlePerformScrying(item.query);
+                    setShowQuickMenu(false);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-serif whitespace-nowrap transition-all flex-shrink-0 cursor-pointer shadow-sm active:scale-95"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Floating Action Button (FAB) */}
+        <button
+          onClick={() => setShowQuickMenu(!showQuickMenu)}
+          className="p-4 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold shadow-2xl border-2 border-amber-300/60 flex items-center justify-center cursor-pointer transition-all active:scale-95 group"
+          title="Toggle Prophets Quick Queries"
+        >
+          <Sparkles className="w-6 h-6 text-slate-950 animate-pulse group-hover:rotate-12 transition-transform" />
+        </button>
       </div>
     </div>
   );

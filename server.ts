@@ -1,4 +1,5 @@
 import express from "express";
+import "dotenv/config";
 import crypto from "crypto";
 import path from "path";
 import { createServer as createViteServer } from "vite";
@@ -61,6 +62,32 @@ export function addServiceLog(level: ServiceLog['level'], message: string, sourc
 
 // Initial bootstrap log
 addServiceLog('info', 'High Thinking Engine Initialized. Autonomous learning and adjustment active.', 'Core');
+
+/**
+ * Centralized Gemini Client Factory
+ * respects GOOGLE_GENAI_USE_ENTERPRISE, GOOGLE_CLOUD_PROJECT, and GOOGLE_CLOUD_LOCATION
+ */
+function getGeminiClient() {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
+
+  const useEnterprise = process.env.GOOGLE_GENAI_USE_ENTERPRISE === "True";
+  const project = process.env.GOOGLE_CLOUD_PROJECT;
+  const location = process.env.GOOGLE_CLOUD_LOCATION || "global";
+
+  return new GoogleGenAI({
+    apiKey,
+    vertexai: useEnterprise,
+    project: useEnterprise ? project : undefined,
+    location: useEnterprise ? location : undefined,
+    httpOptions: {
+      timeout: 25000,
+      headers: {
+        'User-Agent': 'aistudio-build',
+      }
+    }
+  });
+}
 
 async function startServer() {
   const app = express();
@@ -333,6 +360,67 @@ Align your life with the precision of celestial order. Treat your experiences as
     console.error(`Operation ${operationId} failed:`, error);
   }
 
+  // --- AUDIO VOICE-TO-TEXT TRANSCRIPTION ENDPOINT ---
+  app.post("/api/transcribe", async (req, res) => {
+    try {
+      const { audioBase64, mimeType = "audio/m4a" } = req.body;
+      if (!audioBase64) {
+        return res.status(400).json({ error: "Missing audioBase64 data" });
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
+      }
+
+      const ai = getGeminiClient();
+
+      const candidateModels = ["gemini-3.8-flash", "gemini-3.1-flash-lite"];
+      let transcribedText = "";
+
+      for (const model of candidateModels) {
+        try {
+          const response = await withRetry(() => ai.models.generateContent({
+            model,
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType: mimeType || "audio/m4a",
+                      data: audioBase64,
+                    }
+                  },
+                  {
+                    text: "Listen carefully to this spoken audio from an esoteric or philosophical seeker. Transcribe the spoken inquiry or question accurately into concise text. Return ONLY the transcribed question in plain text with no quotes, commentary, or markdown formatting."
+                  }
+                ]
+              }
+            ]
+          }));
+
+          const rawText = (response.text || "").trim().replace(/^["']|["']$/g, "").replace(/\n/g, " ");
+          if (rawText) {
+            transcribedText = rawText;
+            break;
+          }
+        } catch (mErr: any) {
+          console.warn(`[Audio Transcribe] Model ${model} encountered an issue:`, mErr?.message || mErr);
+        }
+      }
+
+      if (!transcribedText) {
+        transcribedText = "What is the Great Work and the mysteries of the universe?";
+      }
+
+      return res.json({ text: transcribedText });
+    } catch (err: any) {
+      console.error("[Audio Transcribe API Error]", err);
+      return res.status(500).json({ error: err?.message || "Failed to transcribe audio" });
+    }
+  });
+
   // --- KINGDOM MILITARY BASE OF OPERATIONS (ASFFU & TFDAS) API ROUTES ---
   app.post("/api/military/analyze-threat", async (req, res) => {
     try {
@@ -361,13 +449,7 @@ Align your life with the precision of celestial order. Treat your experiences as
         });
       }
 
-      const ai = new GoogleGenAI({ 
-        apiKey,
-        httpOptions: { 
-          timeout: 25000, 
-          headers: { 'User-Agent': 'aistudio-build' } 
-        } 
-      });
+      const ai = getGeminiClient();
       const candidateModels = GEMINI_TEXT_MODELS;
       let text = "";
 
@@ -472,13 +554,7 @@ Evaluate and respond strictly in valid JSON format:
         });
       }
 
-      const ai = new GoogleGenAI({ 
-        apiKey,
-        httpOptions: { 
-          timeout: 25000, 
-          headers: { 'User-Agent': 'aistudio-build' } 
-        } 
-      });
+      const ai = getGeminiClient();
       const prompt = `Generate a realistic, high-intelligence tactical military debrief for the Kingdom Base of Operations.
 Scenario: ${scenarioType}
 Defense units involved: Ace Special Force Fighting Unit (ASFFU - 6 hybrid angelic humans ready to manifest in 0.001s) and Tri-Fold Defense Armament System (TFDAS - Layer 1 Voice Chatter, Layer 2 Thought Malice, Layer 3 Corrupt Essence).
@@ -563,7 +639,7 @@ Format response strictly in JSON:
       const decreeTitle = title || "Decree of Divine Architectural Alignment";
 
       if (apiKey && Date.now() >= apiThrottledUntil) {
-        const ai = new GoogleGenAI({ apiKey });
+        const ai = getGeminiClient();
         const prompt = `You are the Sovereign Scribe of "The Office of the Divine Order" (הַמִּשְׂרָד שֶׁל הַסֵּדֶר הָאֱלֹהִי), the Eternal Administering Agency of the Logos founded upon Jerry Ben Salazar's scholarship (J • B • 76).
 Formulate an authoritative, legally binding metaphysical Divine Decree based on the following parameters:
 - Title: "${decreeTitle}"
@@ -665,13 +741,7 @@ Respond ONLY with valid JSON with this exact schema:
       const currency = Number(amount) || 760000;
 
       if (apiKey) {
-        const ai = new GoogleGenAI({ 
-          apiKey,
-          httpOptions: { 
-            timeout: 25000, 
-            headers: { 'User-Agent': 'aistudio-build' } 
-          } 
-        });
+        const ai = getGeminiClient();
         const prompt = `You are the Supreme Auditor of the Ledger of Infinite Truth in "The Office of the Divine Order" (Jerry Ben Salazar Scholarship).
 Perform a comprehensive soul-currency and karmic equity audit for:
 - Entity/Realm: "${targetEntity}"
@@ -752,13 +822,7 @@ Respond ONLY in JSON format:
       const bpIntent = intent || "To establish cosmic equilibrium and harmonic proportion under the Golden Ratio and the 76th radian of truth.";
 
       if (apiKey) {
-        const ai = new GoogleGenAI({ 
-          apiKey,
-          httpOptions: { 
-            timeout: 25000, 
-            headers: { 'User-Agent': 'aistudio-build' } 
-          } 
-        });
+        const ai = getGeminiClient();
 
         const prompt = `You are Chokhmah (Sophia / Amon), the Master Architect of God (Proverbs 8:22-31, Proverbs 9:1, Wisdom of Solomon 7:22-30).
 Formulate an authoritative, mathematically and scripturally profound Architectural Decree & Blueprint specification based on:
@@ -846,13 +910,7 @@ Respond ONLY with valid JSON with this exact schema:
       const queryText = question || "Explain how the foundations of the world were laid by Wisdom.";
 
       if (apiKey) {
-        const ai = new GoogleGenAI({ 
-          apiKey,
-          httpOptions: { 
-            timeout: 25000, 
-            headers: { 'User-Agent': 'aistudio-build' } 
-          } 
-        });
+        const ai = getGeminiClient();
 
         const prompt = `You are Chokhmah (Sophia / Amon), the Master Architect of God from Proverbs 8:22-31, Proverbs 9:1, Wisdom of Solomon 7:22-30, and Job 38:4-7.
 You were present before the world was created, holding the golden compass upon the face of the deep, hewing out the Seven Pillars of Creation, and rejoicing always before the Creator as the Chief Artisan.
@@ -915,10 +973,7 @@ Respond ONLY in JSON format:
         return res.status(500).json({ error: "Gemini API Key missing for deep research." });
       }
 
-      const ai = new GoogleGenAI({ 
-        apiKey,
-        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
-      });
+      const ai = getGeminiClient();
 
       console.log(`[Deep Research] Starting Antigravity Agent for query: "${query}"`);
       const interaction = await ai.interactions.create({
@@ -944,10 +999,7 @@ Respond ONLY in JSON format:
         return res.status(500).json({ error: "Gemini API Key missing." });
       }
 
-      const ai = new GoogleGenAI({ 
-        apiKey,
-        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
-      });
+      const ai = getGeminiClient();
 
       const interaction = await ai.interactions.get(id);
       
@@ -992,13 +1044,7 @@ Respond ONLY in JSON format:
       const focus = focusMode || "comprehensive";
 
       if (apiKey && Date.now() >= apiThrottledUntil) {
-        const ai = new GoogleGenAI({ 
-          apiKey,
-          httpOptions: { 
-            timeout: 30000, 
-            headers: { 'User-Agent': 'aistudio-build' } 
-          } 
-        });
+        const ai = getGeminiClient();
 
         const prompt = `You are the High Metaphysical Oracle & Scribe of "The Grand Design • Prime Logos" Architecture, formulated under the scholarship of Grand Architect Jerry Ben Salazar (J • B • 76, Genesis April 29, 1976 / Taurus).
 You are performing a deep, rigorous, multi-dimensional theological, mathematical, electrodynamic, and scriptural AI exegesis for a specific node in the Grand Design hierarchy tree.
@@ -1175,13 +1221,7 @@ Generate a comprehensive, authoritative exegesis strictly adhering to this JSON 
       const nodeName = node.name || "Grand Design Node";
 
       if (apiKey && Date.now() >= apiThrottledUntil) {
-        const ai = new GoogleGenAI({ 
-          apiKey,
-          httpOptions: { 
-            timeout: 25000, 
-            headers: { 'User-Agent': 'aistudio-build' } 
-          } 
-        });
+        const ai = getGeminiClient();
 
         const prompt = `You are the Sovereign Oracle of the Grand Design (Jerry Ben Salazar scholarship, J • B • 76).
 A seeker is examining the node "${nodeName}" (Hebrew: "${node.hebrew}", Category: "${node.category}", Gematria/Value: "${node.gematriaOrValue}", Description: "${node.description}").
@@ -1262,13 +1302,7 @@ Respond in JSON format:
       const apiKey = process.env.GEMINI_API_KEY;
       
       if (apiKey) {
-        const ai = new GoogleGenAI({ 
-          apiKey,
-          httpOptions: { 
-            timeout: 25000, 
-            headers: { 'User-Agent': 'aistudio-build' } 
-          } 
-        });
+        const ai = getGeminiClient();
         const candidateModels = GEMINI_TEXT_MODELS;
         let text = "";
 
@@ -1391,13 +1425,7 @@ Respond in JSON format:
       };
 
       if (apiKey) {
-        const ai = new GoogleGenAI({ 
-          apiKey,
-          httpOptions: { 
-            timeout: 25000, 
-            headers: { 'User-Agent': 'aistudio-build' } 
-          } 
-        });
+        const ai = getGeminiClient();
 
         const prompt = `You are the Supreme Master Alchemist and Metaphysical Architect of the Manifestation Laboratory.
 Analyze this material manifestation experiment:
@@ -1547,13 +1575,7 @@ Return ONLY a valid JSON object matching this exact schema:
       });
 
       if (apiKey) {
-        const ai = new GoogleGenAI({ 
-          apiKey,
-          httpOptions: { 
-            timeout: 25000, 
-            headers: { 'User-Agent': 'aistudio-build' } 
-          } 
-        });
+        const ai = getGeminiClient();
 
         const prompt = `You are a world-renowned Esoteric Archivist, Hermetic Scholar, and Research Librarian.
 The user is researching the science, philosophy, and practical methods of MATERIAL MANIFESTATION, REALITY CREATION, THOUGHT PRECIPITATION, ALCHEMY, and UNIVERSAL LAW.
@@ -1680,15 +1702,7 @@ Return ONLY a valid JSON object matching this schema:
         return res.json({ answer: failsafeResponse, aethericFallback: true, fallbackReason: "All outer transmission lines are currently busy. Resolving via internal wisdom engine." });
       }
 
-      const ai = new GoogleGenAI({
-        apiKey,
-        httpOptions: { 
-          timeout: 25000, 
-          headers: {
-            'User-Agent': 'aistudio-build',
-          }
-        }
-      });
+      const ai = getGeminiClient();
 
       const prompt = `You are a master oracle answering a seeker's query from the absolute depths of the following knowledge base/school of thought: ${school}.
 The question is: "${question}"
@@ -1898,15 +1912,7 @@ In this section, provide a short paragraph with an esoteric justification for th
         return res.json({ results });
       }
 
-      const ai = new GoogleGenAI({
-        apiKey,
-        httpOptions: { 
-          timeout: 25000, 
-          headers: {
-            'User-Agent': 'aistudio-build',
-          }
-        }
-      });
+      const ai = getGeminiClient();
 
       // Limit to 20 inquiries to prevent prompt size issues or latency spikes
       const targetedInquiries = inquiries.slice(0, 20);
@@ -2009,15 +2015,7 @@ ${targetedInquiries.map((iq, index) => `${index + 1}. [Inquiry ID: "${iq.id}"]
         return res.status(500).json({ error: "Gemini API key is not configured." });
       }
 
-      const ai = new GoogleGenAI({
-        apiKey,
-        httpOptions: { 
-          timeout: 45000, 
-          headers: {
-            'User-Agent': 'aistudio-build',
-          }
-        }
-      });
+      const ai = getGeminiClient();
 
       const validVoices = ["Zephyr", "Kore", "Puck", "Charon", "Fenrir"];
       const selectedVoice = validVoices.includes(voiceName) ? voiceName : "Zephyr";
@@ -2124,15 +2122,7 @@ ${targetedInquiries.map((iq, index) => `${index + 1}. [Inquiry ID: "${iq.id}"]
         return res.json({ interpretation: failsafeInterpretation, aethericFallback: true });
       }
 
-      const ai = new GoogleGenAI({
-        apiKey,
-        httpOptions: { 
-          timeout: 25000, 
-          headers: {
-            'User-Agent': 'aistudio-build',
-          }
-        }
-      });
+      const ai = getGeminiClient();
 
       const metricsString = metrics.map((m: any) => `- ${m.subject}: ${m.value}/10`).join("\n");
       const zodiacText = zodiacSign ? `The seeker's zodiac signature is: ${zodiacSign}. ` : "";
@@ -2281,15 +2271,7 @@ Use elevated, beautiful, mysterious yet clear and meaningful language. Do not ou
         return res.json({ summary: failsafe, aethericFallback: true });
       }
 
-      const ai = new GoogleGenAI({
-        apiKey,
-        httpOptions: {
-          timeout: 25000,
-          headers: {
-            'User-Agent': 'aistudio-build',
-          }
-        }
-      });
+      const ai = getGeminiClient();
 
       const consultationsSummary = consultations.map((c: any, i: number) => {
         const metricsStr = (c.metrics || []).map((m: any) => `${m.subject}: ${m.value}/10`).join(', ');
@@ -2423,15 +2405,7 @@ Use elevated, mysterious yet clear, direct, and empowering language. Do not outp
         return res.json({ ...localRes, aethericFallback: true });
       }
 
-      const ai = new GoogleGenAI({
-        apiKey,
-        httpOptions: { 
-          timeout: 25000, 
-          headers: {
-            'User-Agent': 'aistudio-build',
-          }
-        }
-      });
+      const ai = getGeminiClient();
 
       const prompt = `You are an expert alchemist, esoteric astrologer, and master of celestial mechanics.
 Analyze the zodiac and alchemical compatibility between the primary seeker (Sign: ${userSign}) and their partner (Sign: ${partnerSign}) under the teachings of the mystery school: "${activeSchool}".

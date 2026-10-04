@@ -1,5 +1,15 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
+import { startStudio } from "cssstudio";
+
+if (process.env.NODE_ENV === "development") {
+  try {
+    // startStudio();
+  } catch (e) {
+    console.debug("[CSSStudio] Initialized:", e);
+  }
+}
+
 const originalError = console.error;
 console.error = (...args) => {
   if (args[0] && typeof args[0] === 'string' && args[0].includes('two children with the same key')) {

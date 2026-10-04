@@ -623,9 +623,9 @@ Link: ${window.location.href}`,
               <Compass className="w-4 h-4 text-amber-500/80" /> Sigil Geometry
             </h4>
             <div className="grid grid-cols-3 gap-2">
-              {(['7/3', '7/2', 'heptagon'] as const).map(type => (
+              {(['7/3', '7/2', 'heptagon'] as const).map((type, idx) => (
                 <button
-                  key={type}
+                  key={`star-type-${type}-${idx}`}
                   onClick={() => setStarType(type)}
                   className={`px-2 py-2 rounded-lg border text-xxs font-mono cursor-pointer transition-all ${
                     starType === type 

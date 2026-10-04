@@ -28,6 +28,7 @@ export const SCOPES = [
   'https://www.googleapis.com/auth/drive',
   'https://www.googleapis.com/auth/drive.file',
   'https://www.googleapis.com/auth/drive.readonly',
+  'https://www.googleapis.com/auth/drive.metadata.readonly',
   'https://www.googleapis.com/auth/presentations',
   'https://www.googleapis.com/auth/presentations.readonly',
   'https://www.googleapis.com/auth/spreadsheets',
@@ -55,7 +56,9 @@ export const SCOPES = [
   'https://www.googleapis.com/auth/classroom.student-submissions.me.readonly',
   'https://www.googleapis.com/auth/classroom.student-submissions.students.readonly',
   'https://www.googleapis.com/auth/classroom.topics',
-  'https://www.googleapis.com/auth/classroom.topics.readonly'
+  'https://www.googleapis.com/auth/classroom.topics.readonly',
+  'https://www.googleapis.com/auth/tasks',
+  'https://www.googleapis.com/auth/tasks.readonly'
 ];
 
 const provider = new GoogleAuthProvider();
@@ -99,6 +102,19 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     console.warn('Sign in error:', error);
+    const code = error?.code || '';
+    const msg = error?.message || '';
+    if (
+      code === 'auth/popup-closed-by-user' || 
+      code === 'auth/cancelled-popup-request' ||
+      code === 'auth/popup-blocked' ||
+      msg.includes('popup-closed-by-user') ||
+      msg.includes('cancelled-popup-request') ||
+      msg.includes('popup-blocked')
+    ) {
+      // Gracefully return null for user-initiated cancellations or browser-blocked popups
+      return null;
+    }
     throw error;
   } finally {
     isSigningIn = false;

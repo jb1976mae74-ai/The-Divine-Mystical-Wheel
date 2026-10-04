@@ -425,7 +425,7 @@ export default function NatalChartVisualization({
                       <div className="flex flex-wrap gap-1 pt-1">
                         {residentPlanets.map((p, idx) => (
                           <span
-                            key={idx}
+                            key={`${p.name}-${h.houseNum}-${idx}`}
                             className="text-[9px] font-serif px-1.5 py-0.5 rounded bg-black/50 border border-white/10 flex items-center gap-1"
                             style={{ color: p.color }}
                             title={`${p.name} placed in House ${h.houseNum} (${p.degreeFormatted})`}

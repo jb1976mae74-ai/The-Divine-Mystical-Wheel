@@ -676,7 +676,7 @@ export default function BattleTactics() {
         </defs>
         {lineSegments.map((seg, i) => (
           <line
-            key={i}
+            key={`line-${i}-${seg.x1}-${seg.y1}-${seg.x2}-${seg.y2}`}
             x1={seg.x1}
             y1={seg.y1}
             x2={seg.x2}

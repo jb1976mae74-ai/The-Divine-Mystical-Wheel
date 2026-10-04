@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { triggerHapticFeedback } from '../utils/haptics';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   History,
@@ -1014,6 +1015,7 @@ export default function ConsultationChroniclesDrawer({
 
     if (isDictating) {
       setIsDictating(false);
+      triggerHapticFeedback('finish');
       return;
     }
 
@@ -1025,6 +1027,7 @@ export default function ConsultationChroniclesDrawer({
 
       rec.onstart = () => {
         setIsDictating(true);
+        triggerHapticFeedback('start');
         setDbToast({
           message: "Listening... Speak your search query or tradition.",
           type: "success",
@@ -1043,10 +1046,12 @@ export default function ConsultationChroniclesDrawer({
           });
         }
         setIsDictating(false);
+        triggerHapticFeedback('finish');
       };
 
       rec.onerror = () => {
         setIsDictating(false);
+        triggerHapticFeedback('finish');
         setDbToast({
           message: "Voice search error or microphone permission denied.",
           type: "error",
@@ -1056,6 +1061,7 @@ export default function ConsultationChroniclesDrawer({
 
       rec.onend = () => {
         setIsDictating(false);
+        triggerHapticFeedback('finish');
       };
 
       rec.start();
@@ -1618,22 +1624,35 @@ export default function ConsultationChroniclesDrawer({
                 </div>
 
                 {/* Quick Sort Dropdown */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <select
-                    id="chronicles-quick-sort-select"
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    className="bg-black/60 border border-white/10 rounded-lg px-2.5 py-2 text-xs font-serif text-slate-200 focus:outline-none focus:border-amber-500/50 cursor-pointer"
-                    title="Sort order for consultation records"
-                  >
-                    <option value="newest">✦ Newest First</option>
-                    <option value="oldest">Oldest First</option>
-                    <option value="alphabetical">Alphabetical</option>
-                    <option value="zodiac-asc">Zodiac (♈→♓)</option>
-                    <option value="zodiac-desc">Zodiac (♓→♈)</option>
-                    <option value="zodiac-alpha">Zodiac (A→Z)</option>
-                  </select>
-
+                <div className="flex flex-col gap-2 shrink-0">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-slate-500" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Filter inquiries..."
+                      className="w-full pl-8 pr-3 py-2 bg-black/60 border border-white/10 rounded-lg text-xs font-serif text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-all"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <select
+                      id="chronicles-quick-sort-select"
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as any)}
+                      className="bg-black/60 border border-white/10 rounded-lg px-2.5 py-2 text-xs font-serif text-slate-200 focus:outline-none focus:border-amber-500/50 cursor-pointer"
+                      title="Sort order for consultation records"
+                    >
+                      <option value="newest">✦ Newest First</option>
+                      <option value="oldest">Oldest First</option>
+                      <option value="alphabetical">Alphabetical</option>
+                      <option value="zodiac-asc">Zodiac (♈→♓)</option>
+                      <option value="zodiac-desc">Zodiac (♓→♈)</option>
+                      <option value="zodiac-alpha">Zodiac (A→Z)</option>
+                    </select>
+                  </div>
+                  
                   {/* Toggle Advanced Filters Button */}
                   <button
                     type="button"

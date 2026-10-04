@@ -12,12 +12,17 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.greatwheel.app"
+      "bundleIdentifier": "com.greatwheel.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "The Great Wheel requires microphone access for voice-to-text oracle inquiries."
+      }
     },
     "android": {
       "package": "com.greatwheel.app",
       "permissions": [
-        "INTERNET"
+        "INTERNET",
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS"
       ]
     }
   }

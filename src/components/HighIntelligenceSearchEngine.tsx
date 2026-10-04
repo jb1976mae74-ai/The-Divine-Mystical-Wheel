@@ -172,6 +172,57 @@ export const HighIntelligenceSearchEngine: React.FC<HighIntelligenceSearchEngine
     doc.save(`High_IQ_Search_${query.slice(0, 20).replace(/\s+/g, "_")}.pdf`);
   };
 
+  const handleDownloadJSON = () => {
+    if (!synthesis) return;
+    const exportData = {
+      query,
+      activeEngineTab,
+      timestamp: new Date().toISOString(),
+      synthesis,
+      thinkingSteps,
+      engines,
+      groundingSources,
+      learnedMemory: currentMemory
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `High_IQ_Search_${query.slice(0, 20).replace(/\s+/g, "_")}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadCSV = () => {
+    if (!synthesis) return;
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Category,TitleOrStep,URLOrDetails,ContentOrSnippet\r\n";
+
+    csvContent += `"Query","${query.replace(/"/g, '""')}","","${activeEngineTab}"\r\n`;
+
+    thinkingSteps.forEach((step, idx) => {
+      csvContent += `"ThinkingStep_${idx + 1}","Step ${idx + 1}","","${step.replace(/"/g, '""')}"\r\n`;
+    });
+
+    groundingSources.forEach((src) => {
+      csvContent += `"GroundingSource","${src.title.replace(/"/g, '""')}","${src.url.replace(/"/g, '""')}","${src.snippet.replace(/"/g, '""')}"\r\n`;
+    });
+
+    if (engines) {
+      Object.entries(engines).forEach(([engKey, profile]) => {
+        csvContent += `"Engine_${engKey}","${profile.name} (${profile.badge})","${profile.focus.replace(/"/g, '""')}","${profile.summary.replace(/"/g, '""')}"\r\n`;
+      });
+    }
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `High_IQ_Search_${query.slice(0, 20).replace(/\s+/g, "_")}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6 text-slate-100 p-2 sm:p-4">
       {/* Header Panel */}
@@ -357,6 +408,22 @@ export const HighIntelligenceSearchEngine: React.FC<HighIntelligenceSearchEngine
                   >
                     <Download className="w-4 h-4" />
                     <span>PDF</span>
+                  </button>
+                  <button
+                    onClick={handleDownloadJSON}
+                    className="p-2 rounded-lg bg-indigo-950 hover:bg-indigo-900 border border-indigo-500/30 text-indigo-300 text-xs flex items-center gap-1 transition-all cursor-pointer"
+                    title="Export JSON Data"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>JSON</span>
+                  </button>
+                  <button
+                    onClick={handleDownloadCSV}
+                    className="p-2 rounded-lg bg-emerald-950 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-1 transition-all cursor-pointer"
+                    title="Export CSV Table"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>CSV</span>
                   </button>
                 </div>
               </div>

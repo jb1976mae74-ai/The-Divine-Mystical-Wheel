@@ -1186,14 +1186,29 @@ export default function TemporalNexusSanctum({ activeTheme }: TemporalNexusSanct
                 </span>
                 <div className="flex items-center gap-3">
                   {simulation.status === 'RUNNING' ? (
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[9px] font-bold">
-                      <Loader2 className="w-3 h-3 animate-spin text-rose-400" />
-                      <span>RUNNING</span>
-                    </div>
+                    <>
+                      <button
+                        onClick={() => {
+                          globalNexusService.cancelWorkflowSimulation(simulation.id);
+                        }}
+                        className="px-2 py-0.5 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-[10px] font-sans hover:text-amber-200 cursor-pointer transition-all"
+                      >
+                        Cancel Workflow
+                      </button>
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[9px] font-bold">
+                        <Loader2 className="w-3 h-3 animate-spin text-rose-400" />
+                        <span>RUNNING</span>
+                      </div>
+                    </>
                   ) : simulation.status === 'COMPLETED' ? (
                     <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-bold font-sans">
                       <Check className="w-3 h-3 text-emerald-400" />
                       <span>COMPLETED</span>
+                    </div>
+                  ) : simulation.status === 'CANCELED' ? (
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-bold font-sans">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
+                      <span>CANCELED</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] font-bold font-sans">
