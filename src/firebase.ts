@@ -1,8 +1,18 @@
 import { setLogLevel } from "firebase/firestore";
 setLogLevel("silent");
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
-import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import {
+  getAuth,
+  signInWithPopup,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  User,
+} from 'firebase/auth';
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
@@ -62,33 +72,68 @@ export const SCOPES = [
 ];
 
 const provider = new GoogleAuthProvider();
-SCOPES.forEach(scope => provider.addScope(scope));
+SCOPES.forEach((scope) => provider.addScope(scope));
 
 let isSigningIn = false;
 let cachedAccessToken: string | null = null;
 
-// Initialize auth state listener. Call this on app load.
+const tokenStorageKey = 'oracle-google-access-token';
+
+const readStoredToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(tokenStorageKey);
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredToken = (token: string | null) => {
+  if (typeof window === 'undefined') return;
+  try {
+    if (token) {
+      window.localStorage.setItem(tokenStorageKey, token);
+    } else {
+      window.localStorage.removeItem(tokenStorageKey);
+    }
+  } catch {
+    // ignore persistence failures
+  }
+};
+
 export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
   onAuthFailure?: () => void
 ) => {
+  const persistedToken = readStoredToken();
+  if (persistedToken) {
+    cachedAccessToken = persistedToken;
+  }
+
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
-      if (cachedAccessToken) {
-        if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
-      } else if (!isSigningIn) {
-        // Try to get token if logged in but cache is empty (usually Page reload)
-        cachedAccessToken = null;
-        if (onAuthFailure) onAuthFailure();
+      const token = cachedAccessToken || readStoredToken();
+      if (token) {
+        cachedAccessToken = token;
+        if (onAuthSuccess) {
+          onAuthSuccess(user, token);
+        }
+        return;
+      }
+
+      if (!isSigningIn && onAuthFailure) {
+        onAuthFailure();
       }
     } else {
       cachedAccessToken = null;
-      if (onAuthFailure) onAuthFailure();
+      writeStoredToken(null);
+      if (onAuthFailure) {
+        onAuthFailure();
+      }
     }
   });
 };
 
-// Must be called from a button click or user interaction
 export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
   try {
     isSigningIn = true;
@@ -99,20 +144,20 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     }
 
     cachedAccessToken = credential.accessToken;
+    writeStoredToken(cachedAccessToken);
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     console.warn('Sign in error:', error);
     const code = error?.code || '';
     const msg = error?.message || '';
     if (
-      code === 'auth/popup-closed-by-user' || 
+      code === 'auth/popup-closed-by-user' ||
       code === 'auth/cancelled-popup-request' ||
       code === 'auth/popup-blocked' ||
       msg.includes('popup-closed-by-user') ||
       msg.includes('cancelled-popup-request') ||
       msg.includes('popup-blocked')
     ) {
-      // Gracefully return null for user-initiated cancellations or browser-blocked popups
       return null;
     }
     throw error;
@@ -122,14 +167,16 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 };
 
 export const getAccessToken = async (): Promise<string | null> => {
-  return cachedAccessToken;
+  return cachedAccessToken || readStoredToken();
 };
 
 export const setCachedToken = (token: string) => {
   cachedAccessToken = token;
+  writeStoredToken(token);
 };
 
 export const logout = async () => {
   await auth.signOut();
   cachedAccessToken = null;
+  writeStoredToken(null);
 };
